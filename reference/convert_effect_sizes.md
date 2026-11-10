@@ -7,7 +7,12 @@ are returned as `NA` with appropriate warnings.
 ## Usage
 
 ``` r
-convert_effect_sizes(es_values, es_types, quiet = FALSE)
+convert_effect_sizes(
+  es_values,
+  es_types,
+  quiet = FALSE,
+  return_reasons = FALSE
+)
 ```
 
 ## Arguments
@@ -27,10 +32,17 @@ convert_effect_sizes(es_values, es_types, quiet = FALSE)
   Logical. If `TRUE`, suppresses warnings about unknown effect size
   types and messages about non-convertible or missing values.
 
+- return_reasons:
+
+  Logical. If `TRUE`, return a data frame with the converted value (`r`)
+  and the reason it is missing (`na_reason`; currently recorded for
+  chi-squared statistics that cannot be converted).
+
 ## Value
 
 Numeric vector of effect sizes converted to Pearson's r. Returns `NA`
-for values that cannot be converted or are missing.
+for values that cannot be converted or are missing. With
+`return_reasons = TRUE`, a data frame with columns `r` and `na_reason`.
 
 ## Details
 
@@ -102,12 +114,21 @@ strings in `es_values`.
   **Conversion:** \\r = \frac{z}{\sqrt{z^2 + N}}\\  
   **Sign:** Preserved.
 
-- Chi-squared:
+- Chi-squared (sometimes convertible):
 
   **Format:** `"x2(1, N = value) = value"`  
-  **Constraint:** df must equal 1.  
-  **Conversion:** \\r = \sqrt{\frac{\chi^2}{N}}\\  
-  **Sign:** Always positive.
+  **Constraint:** Only a \\\chi^2(1)\\ test of a 2 x 2 contingency table
+  can be converted, with N equal to the number of units counted in that
+  table.  
+  **Conversion:** \\r = \sqrt{\frac{\chi^2}{N}}\\ (phi)  
+  **Sign:** Always positive.  
+  **Not converted:** \\\chi^2\\ with df \> 1, without N, or with
+  \\\chi^2 / N \> 1\\ returns `NA` with a reason. The test statistic
+  itself cannot show whether a \\\chi^2(1)\\ comes from a contingency
+  table or from a model (Wald, likelihood-ratio, model fit) or
+  goodness-of-fit test. Such values are therefore only excluded when the
+  data flag them (see
+  [`add_common_effect_sizes`](https://forrt.org/fred/reference/add_common_effect_sizes.md)).
 
 ### Non-Convertible Effect Sizes
 
