@@ -70,11 +70,19 @@
 #'     \strong{Conversion:} \eqn{r = \frac{z}{\sqrt{z^2 + N}}}{r = z / sqrt(z² + N)} \cr
 #'     \strong{Sign:} Preserved.
 #'   }
-#'   \item{Chi-squared}{
+#'   \item{Chi-squared (sometimes convertible)}{
 #'     \strong{Format:} \code{"x2(1, N = value) = value"} \cr
-#'     \strong{Constraint:} df must equal 1. \cr
-#'     \strong{Conversion:} \eqn{r = \sqrt{\frac{\chi^2}{N}}}{r = sqrt(χ² / N)} \cr
-#'     \strong{Sign:} Always positive.
+#'     \strong{Constraint:} Only a \eqn{\chi^2(1)}{χ²(1)} test of a 2 x 2
+#'     contingency table can be converted, with N equal to the number of units
+#'     counted in that table. \cr
+#'     \strong{Conversion:} \eqn{r = \sqrt{\frac{\chi^2}{N}}}{r = sqrt(χ² / N)} (phi) \cr
+#'     \strong{Sign:} Always positive. \cr
+#'     \strong{Not converted:} \eqn{\chi^2}{χ²} with df > 1, without N, or with
+#'     \eqn{\chi^2 / N > 1}{χ² / N > 1} returns \code{NA} with a reason. The
+#'     test statistic itself cannot show whether a \eqn{\chi^2(1)}{χ²(1)} comes from a
+#'     contingency table or from a model (Wald, likelihood-ratio, model fit) or
+#'     goodness-of-fit test. Such values are therefore only excluded when the data
+#'     flag them (see \code{\link{add_common_effect_sizes}}).
 #'   }
 #' }
 #' }
@@ -91,9 +99,14 @@
 #'   See Details for accepted values. Unrecognized types trigger a warning.
 #' @param quiet Logical. If \code{TRUE}, suppresses warnings about unknown
 #'   effect size types and messages about non-convertible or missing values.
+#' @param return_reasons Logical. If \code{TRUE}, return a data frame with the
+#'   converted value (\code{r}) and the reason it is missing (\code{na_reason};
+#'   currently recorded for chi-squared statistics that cannot be converted).
 #'
 #' @return Numeric vector of effect sizes converted to Pearson's r. Returns
-#'   \code{NA} for values that cannot be converted or are missing.
+#'   \code{NA} for values that cannot be converted or are missing. With
+#'   \code{return_reasons = TRUE}, a data frame with columns \code{r} and
+#'   \code{na_reason}.
 #'
 #' @references
 #' Sánchez-Meca, J., Marín-Martínez, F., & Chacón-Moscoso, S. (2003).
@@ -103,7 +116,7 @@
 #'
 #' @export
 
-convert_effect_sizes <- function(es_values, es_types, quiet = FALSE) {
+convert_effect_sizes <- function(es_values, es_types, quiet = FALSE, return_reasons = FALSE) {
   es_types <- tolower(es_types)
 
   # TK: dataset has a lot of different ways to refer to the same effect size type
@@ -175,6 +188,7 @@ estype_map <- c(
 
 
   es_values_r <- rep(NA, length(es_values))
+  na_reasons <- rep(NA_character_, length(es_values))
 
   # Identify non-convertible effect sizes present in the data
   non_convertible_present <- unique(es_types[es_types %in% tolower(cannot_convert)])
@@ -231,6 +245,7 @@ estype_map <- c(
     } else if (estype == "test-stat") {
       # Convert test statistics formatted in APA style to r
       vals <- es_values[idx]
+      chi <- chi2_to_r(vals)
       converted <- vapply(vals, FUN.VALUE = 1.5, function(x) {
         x <- trimws(x)
 
@@ -241,9 +256,6 @@ estype_map <- c(
         f_match <- grepl("^f\\(\\d+\\s*,\\s*\\d+\\)\\s*=\\s*\\d+\\.?\\d*$", x, ignore.case = TRUE)
         # z = value, N = value
         z_match <- grepl("^z\\s*=\\s*-?\\d+\\.?\\d*\\s*,\\s*n\\s*=\\s*\\d+$", x, ignore.case = TRUE)
-        # x2/χ2(1, N = value) = value
-        chi_candidate <- gsub("^[\u03c7\u03a7]", "x", x, perl = TRUE)
-        chi_match <- grepl("^x2\\(\\s*1\\s*,\\s*n\\s*=\\s*\\d+\\s*\\)\\s*=\\s*\\d+\\.?\\d*$", chi_candidate, ignore.case = TRUE)
 
         if (t_match) {
           # Extract df and t-value
@@ -268,16 +280,15 @@ estype_map <- c(
           zval <- as_numeric_verbose(sub(".*z\\s*=\\s*(-?\\d+\\.?\\d*).*", "\\1", x, ignore.case = TRUE), quiet = quiet)
           nval <- as_numeric_verbose(sub(".*n\\s*=\\s*(\\d+).*", "\\1", x, ignore.case = TRUE), quiet = quiet)
           return(zval / sqrt(zval^2 + nval)) # Convert z to r
-        } else if (chi_match) {
-          # Extract chi-square value and N
-          nval <- as_numeric_verbose(sub(".*x2\\(\\s*1\\s*,\\s*n\\s*=\\s*(\\d+)\\s*\\).*", "\\1", chi_candidate, ignore.case = TRUE), quiet = quiet)
-          chi_val <- as_numeric_verbose(sub(".*=\\s*(\\d+\\.?\\d*).*", "\\1", chi_candidate, ignore.case = TRUE), quiet = quiet)
-          return(sqrt(chi_val / nval)) # Convert chi-square(1) to r
         } else {
           return(NA) # Not a valid test statistic format
         }
       })
+      # Chi-squared statistics are handled by chi2_to_r()
+      is_chi <- !is.na(chi$parsed) & chi$parsed
+      converted[is_chi] <- chi$r[is_chi]
       es_values_r[idx] <- converted
+      na_reasons[idx] <- chi$na_reason
     } else {
       warning("Effect size type ", estype, " not recognized. Setting to missing.")
       es_values_r[idx] <- NA
@@ -302,7 +313,43 @@ estype_map <- c(
     message("\n", missing_count, " rows had missing effect sizes or effect size types.\n")
   }
 
+  if (return_reasons) {
+    return(data.frame(r = es_values_r, na_reason = na_reasons, stringsAsFactors = FALSE))
+  }
   es_values_r
+}
+
+#' Convert chi-squared test statistics to r
+#'
+#' Applies the contingency-table rule: only chi2(1) with an N and chi2 / N <= 1
+#' is converted to phi = sqrt(chi2 / N). Everything else returns NA with a reason.
+#' Whether a chi2(1) comes from a contingency table cannot be read from the
+#' statistic; that judgement comes from the data (see add_common_effect_sizes()).
+#'
+#' @param x Character vector of APA-formatted statistics.
+#' @return Data frame with `parsed` (TRUE if x is a chi-squared statistic),
+#'   `r` and `na_reason`.
+#' @noRd
+
+chi2_to_r <- function(x) {
+  x <- gsub("^[\u03c7\u03a7]", "x", trimws(as.character(x)), perl = TRUE)
+  pattern <- "^x(?:2|\u00b2)\\s*\\(\\s*(\\d+(?:\\.\\d+)?)\\s*(?:,\\s*(?:n\\s*=\\s*)?(\\d+(?:\\.\\d+)?)\\s*)?\\)\\s*=\\s*(\\d*\\.?\\d+)$"
+  m <- regmatches(x, regexec(pattern, x, ignore.case = TRUE, perl = TRUE))
+  parsed <- vapply(m, length, integer(1)) == 4
+  get <- function(i) vapply(m, function(v) if (length(v) == 4 && v[i] != "") as.numeric(v[i]) else NA_real_, numeric(1))
+  df <- get(2)
+  n <- get(3)
+  chi <- get(4)
+
+  r <- rep(NA_real_, length(x))
+  reason <- rep(NA_character_, length(x))
+  reason[parsed & df != 1] <- "chi-squared with df > 1 cannot be converted to r"
+  reason[parsed & df == 1 & is.na(n)] <- "chi-squared without N cannot be converted to r"
+  too_large <- parsed & df == 1 & !is.na(n) & chi / n > 1
+  reason[too_large] <- "chi-squared / N > 1, so not a 2 x 2 contingency-table test with N units"
+  ok <- parsed & df == 1 & !is.na(n) & !too_large
+  r[ok] <- sqrt(chi[ok] / n[ok])
+  data.frame(parsed = parsed, r = r, na_reason = reason, stringsAsFactors = FALSE)
 }
 
 
@@ -348,11 +395,19 @@ as_numeric_verbose <- function(x, quiet = FALSE) {
 #' @param es_type_columns Character vector of column names for effect size types
 #' @param es_common_names Names of columns where effect sizes should be saved. If coalesce_values is TRUE, existing values in these columns will be retained *if* no conversion is possible.
 #' @param coalesce_values Logical. Should existing values in es_type_columns be retained?
-#' @return FReD dataset with additional columns for common effect sizes
+#' @param not_convertible_columns Names of optional columns in which the dataset
+#'   records why an effect must not be converted to r (e.g., a chi-squared(1) from a
+#'   Wald, likelihood-ratio, model-fit or goodness-of-fit test rather than from a
+#'   contingency table). A non-empty value sets the common effect size to \code{NA}.
+#'   Missing columns are ignored.
+#' @return FReD dataset with additional columns for common effect sizes, and
+#'   columns \code{<es_common_names>_na_reason} explaining why an effect has no
+#'   common effect size where a reason is known.
 
 add_common_effect_sizes <- function(fred_data, es_value_columns = c("es_value_o", "es_value_r"),
                                     es_type_columns = c("es_type_o", "es_type_r"), es_common_names = c("es_o", "es_r"),
-                                    coalesce_values = TRUE) {
+                                    coalesce_values = TRUE,
+                                    not_convertible_columns = c("es_not_convertible_o", "es_not_convertible_r")) {
   if (!all.equal(length(es_value_columns), length(es_type_columns), length(es_common_names))) {
     stop("Length of es_value_columns, es_type_columns, and es_common_names must be equal")
   }
@@ -363,6 +418,17 @@ add_common_effect_sizes <- function(fred_data, es_value_columns = c("es_value_o"
     if (!es_type_columns[i] %in% colnames(fred_data)) {
       stop("Column ", es_type_columns[i], " not found in FReD dataset")
     }
+
+    converted <- convert_effect_sizes(fred_data[, es_value_columns[i]], fred_data[, es_type_columns[i]],
+                                      return_reasons = TRUE)
+    flag <- rep(NA_character_, nrow(fred_data))
+    if (!is.na(not_convertible_columns[i]) && not_convertible_columns[i] %in% names(fred_data)) {
+      flag <- as.character(fred_data[, not_convertible_columns[i]])
+      flag[!is.na(flag) & trimws(flag) == ""] <- NA
+    }
+    blocked <- !is.na(flag)
+    converted$r[blocked] <- NA
+    converted$na_reason[blocked] <- flag[blocked]
 
     if (coalesce_values && es_common_names[i] %in% names(fred_data)) {
       prev_es <- as.numeric(fred_data[, es_common_names[i]])
@@ -380,10 +446,13 @@ add_common_effect_sizes <- function(fred_data, es_value_columns = c("es_value_o"
         prev_es[prev_es == -1] <- -.9999
       }
 
-      fred_data[, es_common_names[i]] <- dplyr::coalesce(convert_effect_sizes(fred_data[, es_value_columns[i]], fred_data[, es_type_columns[i]]), prev_es)
+      # Do not refill effects that were deliberately left unconverted
+      prev_es[blocked | !is.na(converted$na_reason)] <- NA
+      fred_data[, es_common_names[i]] <- dplyr::coalesce(converted$r, prev_es)
     } else {
-      fred_data[, es_common_names[i]] <- convert_effect_sizes(fred_data[, es_value_columns[i]], fred_data[, es_type_columns[i]])
+      fred_data[, es_common_names[i]] <- converted$r
     }
+    fred_data[, paste0(es_common_names[i], "_na_reason")] <- converted$na_reason
 
   }
 
