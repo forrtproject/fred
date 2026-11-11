@@ -323,6 +323,7 @@ estype_map <- c(
 #'
 #' Applies the contingency-table rule: only chi2(1) with an N and chi2 / N <= 1
 #' is converted to phi = sqrt(chi2 / N). Everything else returns NA with a reason.
+#' Text after the statistic (e.g. ", p = .049") is ignored.
 #' Whether a chi2(1) comes from a contingency table cannot be read from the
 #' statistic; that judgement comes from the data (see add_common_effect_sizes()).
 #'
@@ -333,7 +334,7 @@ estype_map <- c(
 
 chi2_to_r <- function(x) {
   x <- gsub("^[\u03c7\u03a7]", "x", trimws(as.character(x)), perl = TRUE)
-  pattern <- "^x(?:2|\u00b2)\\s*\\(\\s*(\\d+(?:\\.\\d+)?)\\s*(?:,\\s*(?:n\\s*=\\s*)?(\\d+(?:\\.\\d+)?)\\s*)?\\)\\s*=\\s*(\\d*\\.?\\d+)$"
+  pattern <- "^x(?:2|\u00b2)\\s*\\(\\s*(\\d+(?:\\.\\d+)?)\\s*(?:,\\s*(?:n\\s*=\\s*)?(\\d+(?:\\.\\d+)?)\\s*)?\\)\\s*=\\s*(\\d*\\.?\\d+)(?![\\d.])"
   m <- regmatches(x, regexec(pattern, x, ignore.case = TRUE, perl = TRUE))
   parsed <- vapply(m, length, integer(1)) == 4
   get <- function(i) vapply(m, function(v) if (length(v) == 4 && v[i] != "") as.numeric(v[i]) else NA_real_, numeric(1))

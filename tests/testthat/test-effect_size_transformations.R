@@ -254,6 +254,13 @@ test_that("chi-square that cannot come from a 2 x 2 table is not converted", {
   expect_equal(convert_effect_sizes(es_values, es_types), c(NA, NA, NA, sqrt(43.02 / 45)))
 })
 
+test_that("chi-square followed by further text is parsed", {
+  expect_equal(convert_effect_sizes("X2(1, N = 72) = 3.886, N = 72, p = 0.049", "test statistic"), sqrt(3.886 / 72))
+  result <- convert_effect_sizes("X2(3, N = 705) = 42.167, p < .001", "test statistic", return_reasons = TRUE)
+  expect_true(is.na(result$r))
+  expect_match(result$na_reason, "df > 1")
+})
+
 test_that("chi-square with N given without 'N =' is parsed", {
   expect_equal(convert_effect_sizes("X2(1, 85) = 7.873", "test statistic"), sqrt(7.873 / 85))
 })
