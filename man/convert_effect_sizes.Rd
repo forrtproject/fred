@@ -56,14 +56,14 @@ then d to r. \cr
 \item{Eta-squared}{
 \code{"etasq"}, \code{"eta^2"}, \code{"η²"} \cr
 \strong{Conversion:} \eqn{d = 2\sqrt{\frac{\eta^2}{1 - \eta^2}}}{d = 2 * sqrt(η² / (1 - η²))},
-    then d to r. \cr
+then d to r. \cr
 \strong{Sign:} Always positive.
 }
 \item{Cohen's f / f²}{
 \code{"f"}, \code{"cohen's f"}, \code{"f2"}, \code{"f^2"}, \code{"f²"} \cr
 \strong{Conversion (f):} \eqn{d = 2f}{d = 2f}, then d to r. \cr
 \strong{Conversion (f²):} \eqn{R^2 = \frac{f^2}{1 + f^2}}{R² = f² / (1 + f²)},
-    then \eqn{r = \sqrt{R^2}}{r = sqrt(R²)}. \cr
+then \eqn{r = \sqrt{R^2}}{r = sqrt(R²)}. \cr
 \strong{Sign:} Always positive.
 }
 }
