@@ -1,19 +1,5 @@
 # Changelog
 
-## FReD (development version)
-
-### Bug fixes
-
-- Chi-squared statistics are only converted to r when they can come from
-  a 2 x 2 contingency table: chi2(1) with N and chi2 / N \<= 1. Other
-  chi-squared values (df \> 1, no N, chi2 / N \> 1) return `NA` with a
-  reason instead of impossible values such as r = 1.19
-  (forrtproject/fred-data#66).
-- [`add_common_effect_sizes()`](https://forrt.org/fred/reference/add_common_effect_sizes.md)
-  honours dataset flags (`es_not_convertible_o`, `es_not_convertible_r`)
-  for chi2(1) from Wald, likelihood-ratio, model-fit or goodness-of-fit
-  tests, and records reasons in `es_o_na_reason` / `es_r_na_reason`.
-
 ## FReD 0.2.0
 
 ### Breaking Changes

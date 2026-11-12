@@ -41,15 +41,6 @@
     </div>
 
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="development version" id="fred-development-version">FReD (development version)<a class="anchor" aria-label="anchor" href="#fred-development-version"></a></h2>
-<div class="section level3">
-<h3 id="bug-fixes-development-version">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-development-version"></a></h3>
-<ul><li>Chi-squared statistics are only converted to r when they can come from a 2 x 2 contingency table: chi2(1) with N and chi2 / N &lt;= 1. Other chi-squared values (df &gt; 1, no N, chi2 / N &gt; 1) return <code>NA</code> with a reason instead of impossible values such as r = 1.19 (forrtproject/fred-data#66).</li>
-<li>
-<code><a href="../reference/add_common_effect_sizes.html">add_common_effect_sizes()</a></code> honours dataset flags (<code>es_not_convertible_o</code>, <code>es_not_convertible_r</code>) for chi2(1) from Wald, likelihood-ratio, model-fit or goodness-of-fit tests, and records reasons in <code>es_o_na_reason</code> / <code>es_r_na_reason</code>.</li>
-</ul></div>
-</div>
-    <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.2.0" id="fred-020">FReD 0.2.0<a class="anchor" aria-label="anchor" href="#fred-020"></a></h2>
 <div class="section level3">
 <h3 id="breaking-changes-0-2-0">Breaking Changes<a class="anchor" aria-label="anchor" href="#breaking-changes-0-2-0"></a></h3>

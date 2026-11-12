@@ -53,12 +53,7 @@ returned as <code>NA</code> with appropriate warnings.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">convert_effect_sizes</span><span class="op">(</span></span>
-<span>  <span class="va">es_values</span>,</span>
-<span>  <span class="va">es_types</span>,</span>
-<span>  quiet <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  return_reasons <span class="op">=</span> <span class="cn">FALSE</span></span>
-<span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">convert_effect_sizes</span><span class="op">(</span><span class="va">es_values</span>, <span class="va">es_types</span>, quiet <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -79,19 +74,11 @@ See Details for accepted values. Unrecognized types trigger a warning.</p></dd>
 <dd><p>Logical. If <code>TRUE</code>, suppresses warnings about unknown
 effect size types and messages about non-convertible or missing values.</p></dd>
 
-
-<dt id="arg-return-reasons">return_reasons<a class="anchor" aria-label="anchor" href="#arg-return-reasons"></a></dt>
-<dd><p>Logical. If <code>TRUE</code>, return a data frame with the
-converted value (<code>r</code>) and the reason it is missing (<code>na_reason</code>;
-currently recorded for chi-squared statistics that cannot be converted).</p></dd>
-
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>Numeric vector of effect sizes converted to Pearson's r. Returns
-<code>NA</code> for values that cannot be converted or are missing. With
-<code>return_reasons = TRUE</code>, a data frame with columns <code>r</code> and
-<code>na_reason</code>.</p>
+<code>NA</code> for values that cannot be converted or are missing.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
@@ -140,15 +127,8 @@ then \(r = \sqrt{R^2}\). <br><strong>Sign:</strong> Always positive.</p></dd>
 <dt>z-test</dt>
 <dd><p><strong>Format:</strong> <code>"z = value, N = value"</code> <br><strong>Conversion:</strong> \(r = \frac{z}{\sqrt{z^2 + N}}\) <br><strong>Sign:</strong> Preserved.</p></dd>
 
-<dt>Chi-squared (sometimes convertible)</dt>
-<dd><p><strong>Format:</strong> <code>"x2(1, N = value) = value"</code> <br><strong>Constraint:</strong> Only a \(\chi^2(1)\) test of a 2 x 2
-contingency table can be converted, with N equal to the number of units
-counted in that table. <br><strong>Conversion:</strong> \(r = \sqrt{\frac{\chi^2}{N}}\) (phi) <br><strong>Sign:</strong> Always positive. <br><strong>Not converted:</strong> \(\chi^2\) with df &gt; 1, without N, or with
-\(\chi^2 / N &gt; 1\) returns <code>NA</code> with a reason. The
-test statistic itself cannot show whether a \(\chi^2(1)\) comes from a
-contingency table or from a model (Wald, likelihood-ratio, model fit) or
-goodness-of-fit test. Such values are therefore only excluded when the data
-flag them (see <code><a href="add_common_effect_sizes.html">add_common_effect_sizes</a></code>).</p></dd>
+<dt>Chi-squared</dt>
+<dd><p><strong>Format:</strong> <code>"x2(1, N = value) = value"</code> <br><strong>Constraint:</strong> df must equal 1. <br><strong>Conversion:</strong> \(r = \sqrt{\frac{\chi^2}{N}}\) <br><strong>Sign:</strong> Always positive.</p></dd>
 
 
 </dl></div>
