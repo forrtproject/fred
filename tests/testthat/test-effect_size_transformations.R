@@ -233,3 +233,59 @@ test_that("convert_effect_sizes works for all supported effect sizes", {
   expect_warning(result <- convert_effect_sizes(es_values, es_types))
   expect_equal(result, expected_r, tolerance = 1e-6)
 })
+
+test_that("chi-square that cannot come from a 2 x 2 table is not converted", {
+  es_values <- c("X2(1, N = 100) = 140.71", "X2(2, N = 64) = 11.28", "X2(1) = 6.7", "X2(1, N = 45) = 43.02")
+  es_types <- rep("test statistic", length(es_values))
+
+  result <- convert_effect_sizes(es_values, es_types, return_reasons = TRUE)
+
+  # 140.71 / 100 > 1 would give r = 1.19; it must not be capped to 1 either
+  expect_true(is.na(result$r[1]))
+  expect_match(result$na_reason[1], "chi-squared / N > 1")
+  expect_true(is.na(result$r[2]))
+  expect_match(result$na_reason[2], "df > 1")
+  expect_true(is.na(result$r[3]))
+  expect_match(result$na_reason[3], "without N")
+  expect_equal(result$r[4], sqrt(43.02 / 45))
+  expect_true(is.na(result$na_reason[4]))
+
+  # Default return stays a plain numeric vector
+  expect_equal(convert_effect_sizes(es_values, es_types), c(NA, NA, NA, sqrt(43.02 / 45)))
+})
+
+test_that("chi-square followed by further text is parsed", {
+  expect_equal(convert_effect_sizes("X2(1, N = 72) = 3.886, N = 72, p = 0.049", "test statistic"), sqrt(3.886 / 72))
+  result <- convert_effect_sizes("X2(3, N = 705) = 42.167, p < .001", "test statistic", return_reasons = TRUE)
+  expect_true(is.na(result$r))
+  expect_match(result$na_reason, "df > 1")
+})
+
+test_that("chi-square with N given without 'N =' is parsed", {
+  expect_equal(convert_effect_sizes("X2(1, 85) = 7.873", "test statistic"), sqrt(7.873 / 85))
+})
+
+test_that("add_common_effect_sizes honours dataset flags for non-convertible effects", {
+  fred_data <- data.frame(
+    id = 1:3,
+    es_value_o = c("X2(1, N = 119) = 110.60", "X2(1, N = 50) = 5", "X2(1, N = 100) = 140.71"),
+    es_type_o = "test statistic",
+    es_value_r = c("t(10) = 2.5", "X2(1, N = 40) = 2", "t(10) = 2.5"),
+    es_type_r = "test statistic",
+    es_not_convertible_o = c("chi-squared from a GLMM likelihood-ratio test", "", NA),
+    es_o = c(0.5, 0.5, 0.5),
+    stringsAsFactors = FALSE
+  )
+
+  out <- suppressMessages(add_common_effect_sizes(fred_data))
+
+  expect_true(is.na(out$es_o[1]))
+  expect_equal(out$es_o_na_reason[1], "chi-squared from a GLMM likelihood-ratio test")
+  expect_equal(out$es_o[2], sqrt(5 / 50))
+  expect_true(is.na(out$es_o_na_reason[2]))
+  # Not refilled from the existing es_o column
+  expect_true(is.na(out$es_o[3]))
+  expect_match(out$es_o_na_reason[3], "chi-squared / N > 1")
+  # Missing flag column for the replication side is ignored
+  expect_equal(out$es_r[2], sqrt(2 / 40))
+})
