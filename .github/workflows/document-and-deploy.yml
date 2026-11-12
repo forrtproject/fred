@@ -12,10 +12,10 @@ jobs:
   document-and-deploy:
     # Skip commits made by this and the data-update workflow (author actions@github.com),
     # so a merge whose squash message lists an "[automated]" commit still deploys.
-    # A commit whose own message contains [no-deploy] is skipped too.
+    # To skip deliberately, start the commit message with "[no-deploy]".
     if: >-
       github.event.head_commit.author.email != 'actions@github.com' &&
-      !contains(github.event.head_commit.message, '[no-deploy]')
+      !startsWith(github.event.head_commit.message, '[no-deploy]')
     runs-on: ubuntu-latest
 
     steps:
