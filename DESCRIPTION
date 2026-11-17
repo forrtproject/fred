@@ -48,4 +48,4 @@ Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
 Config/testthat/edition: 3
 VignetteBuilder: knitr
-URL: http://forrt.org/FReD/
+URL: https://forrt.org/fred/

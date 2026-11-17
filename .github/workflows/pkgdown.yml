@@ -1,5 +1,8 @@
 name: pkgdown
 
+# Builds the package website on every pull request and push to main; deploys it
+# to GitHub Pages (https://forrt.org/fred/) only from main and releases.
+
 on:
   push:
     branches: [main, master]
@@ -7,6 +10,13 @@ on:
     branches: [main, master]
   release:
     types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pkgdown-${{ github.event_name != 'pull_request' || github.run_id }}
 
 jobs:
   pkgdown:
@@ -14,7 +24,7 @@ jobs:
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - uses: r-lib/actions/setup-pandoc@v2
 
@@ -22,13 +32,14 @@ jobs:
         with:
           use-public-rspm: true
 
+      # local::. installs FReD itself, which pkgdown needs to run the examples
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
-          extra-packages: any::pkgdown
+          extra-packages: any::pkgdown, local::.
           needs: website
 
       - name: Build site
-        run: pkgdown::build_site_github_pages(new_process = FALSE)
+        run: pkgdown::build_site_github_pages(new_process = FALSE, install = FALSE)
         shell: Rscript {0}
 
       - name: Copy MathJax config
@@ -38,7 +49,8 @@ jobs:
 
       - name: Deploy to GitHub pages 🚀
         if: github.event_name != 'pull_request'
-        uses: peaceiris/actions-gh-pages@v3
+        uses: JamesIves/github-pages-deploy-action@v4
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./docs
+          clean: true
+          branch: gh-pages
+          folder: docs

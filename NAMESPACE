@@ -19,14 +19,20 @@ import(markdown)
 import(plotly, except = c(last_plot))
 import(shiny)
 import(shinycssloaders)
-importFrom(dplyr,"%>%")
-importFrom(dplyr,case_when)
-importFrom(dplyr,mutate)
-importFrom(dplyr,sym)
-importFrom(stats,na.omit)
-importFrom(stats,pnorm)
-importFrom(stats,pt)
-importFrom(stats,qnorm)
-importFrom(stats,qt)
-importFrom(utils,browseURL)
-importFrom(utils,download.file)
+importFrom(dplyr,
+  "%>%",
+  case_when,
+  mutate,
+  sym
+)
+importFrom(stats,
+  na.omit,
+  pnorm,
+  pt,
+  qnorm,
+  qt
+)
+importFrom(utils,
+  browseURL,
+  download.file
+)

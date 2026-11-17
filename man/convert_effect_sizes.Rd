@@ -4,7 +4,12 @@
 \alias{convert_effect_sizes}
 \title{Convert effect sizes to a common metric (Pearson's r)}
 \usage{
-convert_effect_sizes(es_values, es_types, quiet = FALSE)
+convert_effect_sizes(
+  es_values,
+  es_types,
+  quiet = FALSE,
+  return_reasons = FALSE
+)
 }
 \arguments{
 \item{es_values}{Numeric vector of effect sizes, or character vector for
@@ -15,10 +20,16 @@ See Details for accepted values. Unrecognized types trigger a warning.}
 
 \item{quiet}{Logical. If \code{TRUE}, suppresses warnings about unknown
 effect size types and messages about non-convertible or missing values.}
+
+\item{return_reasons}{Logical. If \code{TRUE}, return a data frame with the
+converted value (\code{r}) and the reason it is missing (\code{na_reason};
+currently recorded for chi-squared statistics that cannot be converted).}
 }
 \value{
 Numeric vector of effect sizes converted to Pearson's r. Returns
-\code{NA} for values that cannot be converted or are missing.
+\code{NA} for values that cannot be converted or are missing. With
+\code{return_reasons = TRUE}, a data frame with columns \code{r} and
+\code{na_reason}.
 }
 \description{
 Converts a variety of effect sizes and test statistics to Pearson's r for
@@ -56,14 +67,14 @@ then d to r. \cr
 \item{Eta-squared}{
 \code{"etasq"}, \code{"eta^2"}, \code{"η²"} \cr
 \strong{Conversion:} \eqn{d = 2\sqrt{\frac{\eta^2}{1 - \eta^2}}}{d = 2 * sqrt(η² / (1 - η²))},
-    then d to r. \cr
+then d to r. \cr
 \strong{Sign:} Always positive.
 }
 \item{Cohen's f / f²}{
 \code{"f"}, \code{"cohen's f"}, \code{"f2"}, \code{"f^2"}, \code{"f²"} \cr
 \strong{Conversion (f):} \eqn{d = 2f}{d = 2f}, then d to r. \cr
 \strong{Conversion (f²):} \eqn{R^2 = \frac{f^2}{1 + f^2}}{R² = f² / (1 + f²)},
-    then \eqn{r = \sqrt{R^2}}{r = sqrt(R²)}. \cr
+then \eqn{r = \sqrt{R^2}}{r = sqrt(R²)}. \cr
 \strong{Sign:} Always positive.
 }
 }
@@ -90,11 +101,19 @@ When \code{es_types} is \code{"test statistic"} the function parses APA-formatte
 \strong{Conversion:} \eqn{r = \frac{z}{\sqrt{z^2 + N}}}{r = z / sqrt(z² + N)} \cr
 \strong{Sign:} Preserved.
 }
-\item{Chi-squared}{
+\item{Chi-squared (sometimes convertible)}{
 \strong{Format:} \code{"x2(1, N = value) = value"} \cr
-\strong{Constraint:} df must equal 1. \cr
-\strong{Conversion:} \eqn{r = \sqrt{\frac{\chi^2}{N}}}{r = sqrt(χ² / N)} \cr
-\strong{Sign:} Always positive.
+\strong{Constraint:} Only a \eqn{\chi^2(1)}{χ²(1)} test of a 2 x 2
+contingency table can be converted, with N equal to the number of units
+counted in that table. \cr
+\strong{Conversion:} \eqn{r = \sqrt{\frac{\chi^2}{N}}}{r = sqrt(χ² / N)} (phi) \cr
+\strong{Sign:} Always positive. \cr
+\strong{Not converted:} \eqn{\chi^2}{χ²} with df > 1, without N, or with
+\eqn{\chi^2 / N > 1}{χ² / N > 1} returns \code{NA} with a reason. The
+test statistic itself cannot show whether a \eqn{\chi^2(1)}{χ²(1)} comes from a
+contingency table or from a model (Wald, likelihood-ratio, model fit) or
+goodness-of-fit test. Such values are therefore only excluded when the data
+flag them (see \code{\link{add_common_effect_sizes}}).
 }
 }
 }
