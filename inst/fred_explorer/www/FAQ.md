@@ -48,9 +48,7 @@ A: You need to enter results from at least one replication finding into the subm
 
 #### Q: Do failed replication studies mean that original findings are untrustworthy?
 
-A: No. Besides scientific misconduct or questionable research practices, replication attempts can fail due to practical reasons, due to unknown background factors, due to changes in (the perception of) concepts, and many more things.
-
-Treat outcome labels as a starting point, not a verdict on the original. They depend on the success criterion or on how replication authors describe their results. A failed replication does not by itself show that the original finding was false or the original study flawed: a replication can also fail by chance, because of low power or problems in its own conduct, or because conditions, situations, or contexts differed.
+A: No. A replication can fail by chance, through low power or problems in how it was run, or because the sample, setting, materials or the meaning of concepts differed from the original. Misconduct or questionable research practices in the original are only some of the possible reasons. The label also depends on the success criterion; under Reported Success it follows the replication authors' own description.
 
 #### Q: Can I take the dataset and use it for my research?
 
