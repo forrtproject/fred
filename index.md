@@ -16,13 +16,13 @@ calling
 [`run_explorer()`](https://forrt.org/fred/reference/run_explorer.md) in
 your R console after you have loaded the package.
 
-Treat outcome labels as a starting point, not a verdict on the original.
-They depend on the success criterion or on how replication authors
-describe their results. A failed replication does not by itself show
-that the original finding was false or the original study flawed: a
-replication can also fail by chance, because of low power or problems in
-its own conduct, or because conditions, situations, or contexts
-differed.
+Outcome labels depend on the success criterion or, for Reported Success,
+on the replication authors’ own description. A failed replication does
+not by itself show that the original finding was false. Replications
+also fail by chance, through low power or flaws in their own conduct, or
+because samples, settings or materials differed.
+[`vignette("success_criteria")`](https://forrt.org/fred/articles/success_criteria.md)
+explains how the criteria differ.
 
 ## FReD Annotator
 
