@@ -15,6 +15,13 @@ and some of them have been implemented in
 [`assess_replication_outcome()`](https://forrt.org/fred/reference/assess_replication_outcome.md) -
 we will briefly introduce them here, and then compare their results.
 
+Treat outcome labels as a starting point, not a verdict on the original.
+They depend on the success criterion used. A failed replication does not
+by itself show that the original finding was false or the original study
+flawed: a replication can also fail by chance, because of low power or
+problems in its own conduct, or because conditions, situations, or
+contexts differed.
+
 ### Repeated significance
 
 Potentially the most basic question is whether a replication again
