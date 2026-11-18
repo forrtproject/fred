@@ -80,10 +80,11 @@ sidebar_contents <- sidebar(
                            "Consistency with PI" = "consistency_pi",
                            "Homogeneity" = "homogeneity",
                            "Homogeneity & Significance" = "homogeneity_significance",
-                           "Small Telescopes" = "small_telescopes"),
+                           "Small Telescopes" = "small_telescopes",
+                           "Reported Success" = "reported_success"),
                selected = "significance_r"),
   div(
-    HTML("<strong>NB:</strong> The success criteria (e.g., <em>p</em>-values, CIs) are calculated from raw effect and sample sizes. These may differ from original reports that used adjusted models.")
+    HTML("<strong>NB:</strong> Except for Reported Success, the success criteria (e.g., <em>p</em>-values, CIs) are calculated from raw effect and sample sizes. These may differ from original reports that used adjusted models.")
   ),
   hr(),
   actionButton("refresh_data", "Load latest data", icon = icon("refresh"),

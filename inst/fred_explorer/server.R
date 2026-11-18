@@ -56,6 +56,8 @@ server <- function(input, output, session) {
 
   df_temp <- reactiveVal()
 
+  uses_reported_outcomes <- reactive(input$success_criterion == "reported_success")
+
   min_power_debounced <- reactive({input$minpower}) %>%
      debounce(500)
 
@@ -84,7 +86,13 @@ server <- function(input, output, session) {
 
     # only show show coded entries?
     if (input$codedentries == TRUE) {
-      df_temp <- df_temp[!is.na(df_temp$result), ]
+      # Reported outcomes do not depend on the effect sizes that result is calculated from
+      coded <- if (uses_reported_outcomes()) {
+        assess_success(df_temp, "reported_success") != "Not calculable"
+      } else {
+        !is.na(df_temp$result)
+      }
+      df_temp <- df_temp[coded, ]
     }
     df_temp(df_temp)
   })
@@ -93,6 +101,12 @@ server <- function(input, output, session) {
     criterion_colors <- success_criteria_colors %>%
       dplyr::filter(criterion == input$success_criterion)
 
+    # Reported labels come from the data, so only list those that occur
+    if (uses_reported_outcomes()) {
+      criterion_colors <- criterion_colors %>%
+        dplyr::filter(label %in% assess_success(data_source$df, "reported_success"))
+    }
+
     outcome_colors <- setNames(criterion_colors$color, criterion_colors$label %>% cap_first_letter())
     c(outcome_colors, "Not coded" = "#C8C8C8")
   })
@@ -100,7 +114,26 @@ server <- function(input, output, session) {
   # Recalculate replication success based on criterion
   assess_success <- function(result, success_criterion) {
     assess_replication_outcome(result$es_o, result$n_o, result$es_r, result$n_r,
-                               criterion = success_criterion)$outcome_report
+                               criterion = success_criterion,
+                               reported_success = result$reported_success,
+                               result = result$result_computed)$outcome_report
+  }
+
+  # Order outcomes for legends and stacked bars
+  outcome_levels <- function(result) {
+    if (uses_reported_outcomes()) {
+      known <- setdiff(names(outcome_colors()), "Not coded")
+      return(rev(c("Not coded", known, setdiff(unique(result), known))))
+    }
+
+    rev(c(
+      "Not coded",
+      unique(result[grepl("Success", result, ignore.case = TRUE)]),
+      unique(result[grepl("Failure", result, ignore.case = TRUE)]),
+      unique(result[!(result %in% c("Not coded", "OS not significant")) &
+                      !grepl("Success|Failure", result, ignore.case = TRUE)]),
+      "OS not significant"
+    ))
   }
 
   observeEvent({input$success_criterion; df_temp()}, {
@@ -110,17 +143,7 @@ server <- function(input, output, session) {
         filter(if (input$validated == "TRUE") validated == 1 else TRUE) %>%
         mutate(
           result = assess_success(., input$success_criterion) %>% cap_first_letter(),
-          result = factor(
-            result,
-            levels = rev(c(
-              "Not coded",
-              unique(result[grepl("Success", result, ignore.case = TRUE)]),
-              unique(result[grepl("Failure", result, ignore.case = TRUE)]),
-              unique(result[!(result %in% c("Not coded", "OS not significant")) &
-                              !grepl("Success|Failure", result, ignore.case = TRUE)]),
-              "OS not significant"
-            ))
-          )
+          result = factor(result, levels = outcome_levels(result))
         )
 
       df_temp(updated_df)
@@ -469,6 +492,9 @@ server <- function(input, output, session) {
   library(rlang)
   #LW to check: is this needed?
 
+  # Reported Success has its own "Mixed" label, which aggregated outcomes need to share
+  mixed_label <- reactive(if (uses_reported_outcomes()) "Mixed" else "mixed")
+
   aggregate_results <- function(df, ..., result = "result", mixed_text = "mixed", NA_text = "not coded yet") {
 
     result_sym <- ensym(result)
@@ -494,7 +520,7 @@ server <- function(input, output, session) {
 
   output$correlate_decade <- plotly::renderPlotly({
 
-    red_agg <- aggregate_results(df_temp_DT(), ref_o)
+    red_agg <- aggregate_results(df_temp_DT(), ref_o, mixed_text = mixed_label())
 
     red_agg$year_orig <- as.numeric(substr(gsub("\\D", "", red_agg$ref_o), 1, 4))
 
@@ -527,7 +553,7 @@ server <- function(input, output, session) {
   })
 
   output$correlate_journal <- plotly::renderPlotly({
-    red_agg <- aggregate_results(df_temp_DT(), ref_o, orig_journal)
+    red_agg <- aggregate_results(df_temp_DT(), ref_o, orig_journal, mixed_text = mixed_label())
 
 
 
@@ -1094,7 +1120,7 @@ server <- function(input, output, session) {
       paste("FReD-", Sys.Date(), ".xlsx", sep = "")
     },
     content = function(file) {
-      openxlsx::write.xlsx(df_temp_DT(), file, fileEncoding = "WINDOWS-1252")
+      openxlsx::write.xlsx(dplyr::select(df_temp_DT(), -"result_computed"), file, fileEncoding = "WINDOWS-1252")
     }
   )
 }

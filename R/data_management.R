@@ -182,6 +182,7 @@ clean_variables <- function(fred_data) {
   if (!"tags" %in% names(fred_data)) fred_data$tags <- NA
   if (!"contributors" %in% names(fred_data)) fred_data$contributors <- NA
   if (!"result" %in% names(fred_data)) fred_data$result <- NA
+  if (!"reported_success" %in% names(fred_data)) fred_data$reported_success <- NA
   if (!"notes" %in% names(fred_data)) fred_data$notes <- NA
   if (!"exclusion" %in% names(fred_data)) fred_data$exclusion <- NA
   if (!"validated" %in% names(fred_data)) fred_data$validated <- 1

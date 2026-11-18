@@ -4,7 +4,15 @@
 \alias{assess_replication_outcome}
 \title{Assess Replication Outcomes Based on Various Criteria}
 \usage{
-assess_replication_outcome(es_o, n_o, es_r, n_r, criterion)
+assess_replication_outcome(
+  es_o,
+  n_o,
+  es_r,
+  n_r,
+  criterion,
+  reported_success = NULL,
+  result = NULL
+)
 }
 \arguments{
 \item{es_o}{Numeric. The effect size from the original study.}
@@ -17,12 +25,20 @@ assess_replication_outcome(es_o, n_o, es_r, n_r, criterion)
 
 \item{criterion}{Character. The criterion to use for assessing the replication outcome.
 Options include: "significance_r", "significance_agg", "consistency_ci", "consistency_pi",
-"homogeneity", "homogeneity_significance" and "small_telescopes".}
+"homogeneity", "homogeneity_significance", "small_telescopes" and "reported_success".}
+
+\item{reported_success}{Character. The outcome reported for each replication, as coded in the
+\code{reported_success} variable of the FReD dataset. Required when \code{criterion = "reported_success"},
+and ignored otherwise.}
+
+\item{result}{Character. Optional fallback for \code{criterion = "reported_success"}, used where
+\code{reported_success} is missing: the \code{result} variable returned by \code{\link[=load_fred_data]{load_fred_data()}}.}
 }
 \value{
 A data frame with the outcome of the assessment based on the specified criterion, with three columns:
 \code{outcome} (success, failure or 'OS not significant'), \code{outcome_detailed} (a specific description of the criterion) and
 \code{outcome_report} (usually the same as outcome, but further broken out where there are distinct reasons for failure).
+For \code{criterion = "reported_success"}, all three columns contain the reported label.
 }
 \description{
 This function evaluates the outcomes of replication studies against the original studies using
@@ -47,6 +63,9 @@ It checks whether the two effects are homogeneous and jointly significantly diff
 \item{small_telescopes}{Tests whether the replication effect size is larger than the effect size that would have given the
 original study a power of 33\%. Derived from Simonsohn (2015), the idea here is that replications should only count as
 successful if they indicate that the original study provided evidence (rather than a lucky guess).}
+\item{reported_success}{Uses the outcome as described by the replication authors instead of calculating one from effect sizes,
+so the effect size and sample size arguments do not affect it. Coded labels are returned unchanged (e.g., "successful", "failed",
+"mixed"). Where no outcome is coded, \code{result} is used, and "Not calculable" if that is missing as well.}
 }
 }
 \examples{
@@ -55,5 +74,6 @@ n_o <- 100   # Sample size of the original study
 es_r <- 0.25 # Effect size from the replication study
 n_r <- 120   # Sample size of the replication study
 assess_replication_outcome(es_o, n_o, es_r, n_r, "significance_r")
+assess_replication_outcome(es_o, n_o, es_r, n_r, "reported_success", reported_success = "mixed")
 
 }
