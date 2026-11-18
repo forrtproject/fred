@@ -2,6 +2,15 @@
 
 ## FReD (development version)
 
+### New features
+
+- Added **Reported Success** as a success criterion in
+  [`assess_replication_outcome()`](https://forrt.org/fred/reference/assess_replication_outcome.md)
+  (`criterion = "reported_success"`) and the FReD Explorer. It uses the
+  outcome reported by the replication authors, as coded in the
+  `reported_success` variable, and matches the criterion of the same
+  name in the web-based Explorer. The default criterion is unchanged.
+
 ### Bug fixes
 
 - Chi-squared statistics are only converted to r when they can come from

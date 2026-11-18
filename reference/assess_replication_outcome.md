@@ -8,7 +8,15 @@ for more details).
 ## Usage
 
 ``` r
-assess_replication_outcome(es_o, n_o, es_r, n_r, criterion)
+assess_replication_outcome(
+  es_o,
+  n_o,
+  es_r,
+  n_r,
+  criterion,
+  reported_success = NULL,
+  result = NULL
+)
 ```
 
 ## Arguments
@@ -34,7 +42,20 @@ assess_replication_outcome(es_o, n_o, es_r, n_r, criterion)
   Character. The criterion to use for assessing the replication outcome.
   Options include: "significance_r", "significance_agg",
   "consistency_ci", "consistency_pi", "homogeneity",
-  "homogeneity_significance" and "small_telescopes".
+  "homogeneity_significance", "small_telescopes" and "reported_success".
+
+- reported_success:
+
+  Character. The outcome reported for each replication, as coded in the
+  `reported_success` variable of the FReD dataset. Required when
+  `criterion = "reported_success"`, and ignored otherwise.
+
+- result:
+
+  Character. Optional fallback for `criterion = "reported_success"`,
+  used where `reported_success` is missing: the `result` variable
+  returned by
+  [`load_fred_data()`](https://forrt.org/fred/reference/load_fred_data.md).
 
 ## Value
 
@@ -42,7 +63,9 @@ A data frame with the outcome of the assessment based on the specified
 criterion, with three columns: `outcome` (success, failure or 'OS not
 significant'), `outcome_detailed` (a specific description of the
 criterion) and `outcome_report` (usually the same as outcome, but
-further broken out where there are distinct reasons for failure).
+further broken out where there are distinct reasons for failure). For
+`criterion = "reported_success"`, all three columns contain the reported
+label.
 
 ## Details
 
@@ -95,6 +118,14 @@ criteria:
   count as successful if they indicate that the original study provided
   evidence (rather than a lucky guess).
 
+- reported_success:
+
+  Uses the outcome as described by the replication authors instead of
+  calculating one from effect sizes, so the effect size and sample size
+  arguments do not affect it. Coded labels are returned unchanged (e.g.,
+  "successful", "failed", "mixed"). Where no outcome is coded, `result`
+  is used, and "Not calculable" if that is missing as well.
+
 ## Examples
 
 ``` r
@@ -105,4 +136,7 @@ n_r <- 120   # Sample size of the replication study
 assess_replication_outcome(es_o, n_o, es_r, n_r, "significance_r")
 #>   outcome                  outcome_detailed outcome_report
 #> 1 success replication effect is significant        success
+assess_replication_outcome(es_o, n_o, es_r, n_r, "reported_success", reported_success = "mixed")
+#>   outcome outcome_detailed outcome_report
+#> 1   mixed            mixed          mixed
 ```

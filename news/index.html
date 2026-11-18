@@ -43,6 +43,10 @@
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="development version" id="fred-development-version">FReD (development version)<a class="anchor" aria-label="anchor" href="#fred-development-version"></a></h2>
 <div class="section level3">
+<h3 id="new-features-development-version">New features<a class="anchor" aria-label="anchor" href="#new-features-development-version"></a></h3>
+<ul><li>Added <strong>Reported Success</strong> as a success criterion in <code><a href="../reference/assess_replication_outcome.html">assess_replication_outcome()</a></code> (<code>criterion = "reported_success"</code>) and the FReD Explorer. It uses the outcome reported by the replication authors, as coded in the <code>reported_success</code> variable, and matches the criterion of the same name in the web-based Explorer. The default criterion is unchanged.</li>
+</ul></div>
+<div class="section level3">
 <h3 id="bug-fixes-development-version">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-development-version"></a></h3>
 <ul><li>Chi-squared statistics are only converted to r when they can come from a 2 x 2 contingency table: chi2(1) with N and chi2 / N &lt;= 1. Other chi-squared values (df &gt; 1, no N, chi2 / N &gt; 1) return <code>NA</code> with a reason instead of impossible values such as r = 1.19 (forrtproject/fred-data#66).</li>
 <li>
