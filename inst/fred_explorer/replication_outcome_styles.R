@@ -33,7 +33,20 @@ success_criteria_colors <- tibble::tribble(
 
   # small_telescopes outcome_report labels
   "small_telescopes",         "success",                                   "#8FBC8F",
-  "small_telescopes",         "failure",                                   "#FF7F7F"
+  "small_telescopes",         "failure",                                   "#FF7F7F",
+
+  # reported_success outcome_report labels (colours match the fred-apps Explorer)
+  "reported_success",         "successful",                                "#8FBC8F",
+  "reported_success",         "statistically successful but flawed",       "#d88201",
+  "reported_success",         "failed",                                    "#FF7F7F",
+  "reported_success",         "informative failure",                       "#FF7F7F",
+  "reported_success",         "mixed",                                     "#FFD700",
+  "reported_success",         "uninformative",                             "#D3D3D3",
+  "reported_success",         "descriptive only",                          "#B0C4DE",
+  "reported_success",         "successful replication",                    "#C8C8C8",
+  "reported_success",         "failed replication",                        "#C8C8C8",
+  "reported_success",         "OS not significant",                        "#D3D3D3",
+  "reported_success",         "Not calculable",                            "#C8C8C8"
 )
 
 success_criterion_note <- c(
@@ -43,5 +56,6 @@ success_criterion_note <- c(
   consistency_pi = "Replication success was assessed based on whether the replication effect size fell within the prediction interval derived from the original study and replication sample size. Replications within the prediction interval were considered as successes, while those outside the prediction interval were considered as failures.",
   homogeneity = "Replication success was assessed based on the homogeneity of the effects from the original and replication studies using a heterogeneity test (Q-test). Replications where the effects were homogeneous were considered as successes, while those that showed heterogeneity were considered as failures.",
   homogeneity_significance = "Replication success was assessed based on the combination of homogeneity and the significance of the effect sizes. Replications where the effects were homogeneous and jointly significantly different from zero were considered as successes, while those that were either not homogeneous or not significantly different from zero were considered as failures.",
-  small_telescopes = "Replication success was assessed based on whether the replication effect size was larger than the effect size that would have given the original study a power of 33%. Replications that met this criterion were considered as successes, while those that did not were considered as failures."
+  small_telescopes = "Replication success was assessed based on whether the replication effect size was larger than the effect size that would have given the original study a power of 33%. Replications that met this criterion were considered as successes, while those that did not were considered as failures.",
+  reported_success = "Replication success follows the outcome reported by the replication authors, as coded in the `reported_success` variable of FReD. Unlike the other criteria, it is not calculated from effect sizes, so it also covers replications without usable effect sizes."
 )

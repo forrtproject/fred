@@ -57,7 +57,12 @@ compare_effectsizes <- function(r1, n1, r2, n2) {
 #' @param n_r Integer. The sample size of the replication study.
 #' @param criterion Character. The criterion to use for assessing the replication outcome.
 #'        Options include: "significance_r", "significance_agg", "consistency_ci", "consistency_pi",
-#'        "homogeneity", "homogeneity_significance" and "small_telescopes".
+#'        "homogeneity", "homogeneity_significance", "small_telescopes" and "reported_success".
+#' @param reported_success Character. The outcome reported for each replication, as coded in the
+#'        `reported_success` variable of the FReD dataset. Required when `criterion = "reported_success"`,
+#'        and ignored otherwise.
+#' @param result Character. Optional fallback for `criterion = "reported_success"`, used where
+#'        `reported_success` is missing: the `result` variable returned by [load_fred_data()].
 #'
 #' @details
 #' The function assesses the replication outcome using one of several criteria:
@@ -78,11 +83,15 @@ compare_effectsizes <- function(r1, n1, r2, n2) {
 #'   \item{small_telescopes}{Tests whether the replication effect size is larger than the effect size that would have given the
 #'   original study a power of 33%. Derived from Simonsohn (2015), the idea here is that replications should only count as
 #'   successful if they indicate that the original study provided evidence (rather than a lucky guess).}
+#'   \item{reported_success}{Uses the outcome as described by the replication authors instead of calculating one from effect sizes,
+#'   so the effect size and sample size arguments do not affect it. Coded labels are returned unchanged (e.g., "successful", "failed",
+#'   "mixed"). Where no outcome is coded, `result` is used, and "Not calculable" if that is missing as well.}
 #' }
 #'
 #' @return A data frame with the outcome of the assessment based on the specified criterion, with three columns:
 #' `outcome` (success, failure or 'OS not significant'), `outcome_detailed` (a specific description of the criterion) and
 #' `outcome_report` (usually the same as outcome, but further broken out where there are distinct reasons for failure).
+#' For `criterion = "reported_success"`, all three columns contain the reported label.
 #'
 #' @examples
 #' es_o <- 0.3  # Effect size from the original study
@@ -90,10 +99,11 @@ compare_effectsizes <- function(r1, n1, r2, n2) {
 #' es_r <- 0.25 # Effect size from the replication study
 #' n_r <- 120   # Sample size of the replication study
 #' assess_replication_outcome(es_o, n_o, es_r, n_r, "significance_r")
+#' assess_replication_outcome(es_o, n_o, es_r, n_r, "reported_success", reported_success = "mixed")
 #'
 #' @export
 
-assess_replication_outcome <- function(es_o, n_o, es_r, n_r, criterion) {
+assess_replication_outcome <- function(es_o, n_o, es_r, n_r, criterion, reported_success = NULL, result = NULL) {
 
   # Check that relevant arguments are numeric and not missing
   checkmate::assert_numeric(es_o)
@@ -281,6 +291,25 @@ assess_replication_outcome <- function(es_o, n_o, es_r, n_r, criterion) {
       dplyr::select("outcome", "outcome_detailed", "outcome_report")
   }
 
+  # Mirrors getOutcome() in the fred-apps Explorer (shared/js/success-criteria.js)
+  assess_reported_success <- function(df) {
+    if (is.null(reported_success)) {
+      stop("`reported_success` must be provided when criterion = \"reported_success\".", call. = FALSE)
+    }
+
+    coded_label <- function(x) {
+      x <- as.character(x)
+      checkmate::assert_character(x, len = nrow(df))
+      x[x %in% ""] <- NA_character_
+      x
+    }
+
+    fallback <- if (is.null(result)) rep(NA_character_, nrow(df)) else coded_label(result)
+    label <- dplyr::coalesce(coded_label(reported_success), fallback, "Not calculable")
+
+    data.frame(outcome = label, outcome_detailed = label, outcome_report = label)
+  }
+
   switch(
     criterion,
     significance_r = assess_rep_significance(inputs),
@@ -290,6 +319,7 @@ assess_replication_outcome <- function(es_o, n_o, es_r, n_r, criterion) {
     homogeneity = assess_homogeneity(inputs),
     homogeneity_significance = assess_homogeneity_and_significance(inputs),
     small_telescopes = assess_small_telescopes(inputs),
+    reported_success = assess_reported_success(inputs),
     stop("Criterion not recognised")
   )
 }

@@ -15,6 +15,7 @@ if (!exists("create_citation")) stop("Failed to attach FReD namespace.")
 # Function to load and prepare data - can be called again to refresh
 load_app_data <- function() {
   df <- load_fred_data()
+  df$result_computed <- df$result # The server overwrites result with the selected criterion
   df_display <- df[, c("description", "es_o", "es_r", "n_o", "n_r", "osf_link", "contributors", "result", "result2", "ref_o", "ref_r")]
   df_display$es_o <- round(df_display$es_o, 3)
   df_display$es_r <- round(df_display$es_r, 3)

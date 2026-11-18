@@ -125,9 +125,23 @@ assess_replication_outcome(es_o = .5, n_o = 30, es_r = .2, n_r = 100,
                            criterion = "small_telescopes")
 ```
 
+## Reported success
+
+The criteria above calculate an outcome from effect sizes and sample sizes. Reported success instead uses the replication authors' own description of their result, as coded in the `reported_success` variable of FReD. Its labels are returned as coded: *successful*, *statistically successful but flawed*, *failed*, *mixed*, *uninformative* and *descriptive only*.
+
+This shows how a replication was understood by the people who ran it, and it is available for replications without usable effect sizes. However, authors may apply different standards, so the same statistical result can be described differently in two reports.
+
+To use this criterion, set `criterion = "reported_success"` and pass the coded outcomes as `reported_success`. Where no outcome is coded, the function falls back on `result` if it is provided, and otherwise returns "Not calculable".
+
+```{r}
+assess_replication_outcome(es_o = .5, n_o = 50, es_r = .1, n_r = 1000,
+                           criterion = "reported_success",
+                           reported_success = "mixed")
+```
+
 # Comparing different criteria for replication success
 
-To compare the different criteria, we plot the aggregate outcomes based on the FReD dataset. For this, we ignore studies that have not been coded.
+To compare the different criteria, we plot the aggregate outcomes based on the FReD dataset. For this, we ignore studies that have not been coded. For reported success, the percentage shows replications reported as *successful*, and the other labels are shown separately.
 
 ```{r fig.width = 12, fig.height = 6, warning=FALSE, message=FALSE}
 df <- load_fred_data() %>%
@@ -141,12 +155,17 @@ criteria <- tribble(
    "consistency_pi",            "Consistency\n(prediction interval)",
    "homogeneity",               "Homogeneity",
    "homogeneity_significance",  "Homogeneity +\nSignificance",
-   "small_telescopes",          "Small Telescopes"
+   "small_telescopes",          "Small Telescopes",
+   "reported_success",          "Reported Success"
 )
 
 results <- lapply(criteria$criterion, function(criterion) {
   df %>%
-    mutate(assess_replication_outcome(es_o, n_o, es_r, n_r, criterion = criterion)) %>%
+    mutate(assess_replication_outcome(es_o, n_o, es_r, n_r, criterion = criterion,
+                                      reported_success = reported_success, result = result)) %>%
+    mutate(outcome = case_when(outcome == "successful" ~ "success",
+                               outcome == "failed" ~ "failure",
+                               .default = outcome)) %>%
     count(outcome, outcome_detailed) %>%
     mutate(criterion = criterion)
 })
@@ -175,6 +194,10 @@ p <- results %>%
     "success" = "#66C2A5",        
     "failure" = "#FC8D62",        
     "OS not significant" = "#BFBFBF", 
+    "statistically successful but flawed" = "#D88201",
+    "mixed" = "#FFD700",
+    "uninformative" = "#D3D3D3",
+    "descriptive only" = "#B0C4DE",
     "NA" = "#808080"              
   ))
 
