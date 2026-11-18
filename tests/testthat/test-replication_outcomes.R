@@ -37,7 +37,7 @@ test_that("reported success returns coded labels and handles missing values", {
 
   expect_error(assess_replication_outcome(.5, 50, .1, 100, "reported_success"), "reported_success")
   expect_error(assess_replication_outcome(c(.5, .5), c(50, 50), c(.1, .1), c(100, 100),
-                                          "reported_success", reported_success = "failed"))
+                                          "reported_success", reported_success = "failed"), "length")
 })
 
 test_that("other criteria ignore reported outcomes", {

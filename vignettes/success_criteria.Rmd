@@ -141,7 +141,7 @@ assess_replication_outcome(es_o = .5, n_o = 50, es_r = .1, n_r = 1000,
 
 # Comparing different criteria for replication success
 
-To compare the different criteria, we plot the aggregate outcomes based on the FReD dataset. For this, we ignore studies that have not been coded. For reported success, the percentage shows replications reported as *successful*, and the other labels are shown separately.
+To compare the different criteria, we plot the aggregate outcomes based on the FReD dataset. For this, we ignore studies that have not been coded. All criteria are compared on the same replications, namely those with effect sizes for both studies, so the reported success bar leaves out replications that have a reported outcome but no usable effect sizes. For reported success, the percentage shows replications reported as *successful*, and the other labels are shown separately.
 
 ```{r fig.width = 12, fig.height = 6, warning=FALSE, message=FALSE}
 df <- load_fred_data() %>%

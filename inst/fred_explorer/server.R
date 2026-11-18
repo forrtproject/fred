@@ -1120,7 +1120,7 @@ server <- function(input, output, session) {
       paste("FReD-", Sys.Date(), ".xlsx", sep = "")
     },
     content = function(file) {
-      openxlsx::write.xlsx(df_temp_DT(), file, fileEncoding = "WINDOWS-1252")
+      openxlsx::write.xlsx(dplyr::select(df_temp_DT(), -"result_computed"), file, fileEncoding = "WINDOWS-1252")
     }
   )
 }
