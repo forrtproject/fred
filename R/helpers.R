@@ -20,15 +20,15 @@ compute_ci_r <- function(r, n, conf.level = 0.95) {
     stop("The length of 'r' and 'n' must be the same")
   }
 
-  # Handle NA values directly to avoid warnings
-  valid_indices <- !(is.na(r) | is.na(n) | n <= 3)
+  # Handle invalid/NA values directly to avoid warnings
+  valid_indices <- !(is.na(r) | is.na(n) | n <= 3 | abs(r) >= 1)
 
-  # Initialize vectors to NA
-  z_lower <- z_upper <- r_lower <- r_upper <- rep(NA, length(r))
+  # Initialize vectors to NA_real_
+  z_lower <- z_upper <- r_lower <- r_upper <- rep(NA_real_, length(r))
 
   if (any(valid_indices)) {
     # Fisher r-to-z transformation
-    z <- 0.5 * log((1 + r[valid_indices]) / (1 - r[valid_indices]))
+    z <- atanh(r[valid_indices])
 
     # Standard error of z
     se <- 1 / sqrt(n[valid_indices] - 3)
@@ -41,9 +41,9 @@ compute_ci_r <- function(r, n, conf.level = 0.95) {
     z_lower[valid_indices] <- z - z_crit * se
     z_upper[valid_indices] <- z + z_crit * se
 
-    # Inverse Fisher z-to-r transformation
-    r_lower[valid_indices] <- (exp(2 * z_lower[valid_indices]) - 1) / (exp(2 * z_lower[valid_indices]) + 1)
-    r_upper[valid_indices] <- (exp(2 * z_upper[valid_indices]) - 1) / (exp(2 * z_upper[valid_indices]) + 1)
+    # Inverse Fisher z-to-r transformation (tanh avoids exp() overflow)
+    r_lower[valid_indices] <- tanh(z_lower[valid_indices])
+    r_upper[valid_indices] <- tanh(z_upper[valid_indices])
   }
 
   # Return the confidence intervals in a data frame
@@ -52,7 +52,9 @@ compute_ci_r <- function(r, n, conf.level = 0.95) {
 
 #' Compute Statistical Power for Correlation Coefficient
 #'
-#' Computes the statistical power for testing a correlation coefficient using a two-sided hypothesis given r, n, and alpha.
+#' Computes the statistical power for testing a correlation coefficient using a one-sided test
+#' in the direction of `r` (evaluating magnitude `abs(r)` against the one-sided critical value)
+#' given r, n, and alpha.
 #'
 #' @param r Numeric vector. The correlation coefficients.
 #' @param n Integer vector. The sample sizes.
@@ -75,14 +77,17 @@ compute_ci_r <- function(r, n, conf.level = 0.95) {
       stop("The length of 'r' and 'n' must be the same")
     }
 
-    # Compute the power
-    power <- numeric(length(r))
-    for (i in seq_along(r)) {
-      ttt <- qt(alpha, df = n[i] - 2, lower.tail = FALSE)
-      rc <- sqrt(ttt^2 / (ttt^2 + n[i] - 2))
-      zr <- atanh(abs(r[i])) + abs(r[i]) / (2 * (n[i] - 1))
+    power <- rep(NA_real_, length(r))
+    valid <- !(is.na(r) | is.na(n) | n <= 3 | abs(r) >= 1)
+
+    if (any(valid)) {
+      rv <- abs(r[valid])
+      nv <- n[valid]
+      ttt <- qt(alpha, df = nv - 2, lower.tail = FALSE)
+      rc <- sqrt(ttt^2 / (ttt^2 + nv - 2))
+      zr <- atanh(rv) + rv / (2 * (nv - 1))
       zrc <- atanh(rc)
-      power[i] <- pnorm((zr - zrc) * sqrt(n[i] - 3))
+      power[valid] <- pnorm((zr - zrc) * sqrt(nv - 3))
     }
 
     return(power)
@@ -91,7 +96,7 @@ compute_ci_r <- function(r, n, conf.level = 0.95) {
 #' Find Correlation Coefficient for Desired Power
 #'
 #' Calculates the correlation coefficient required to achieve a target power
-#' in a two-tailed test of correlation, given the sample size and significance level.
+#' in a one-tailed ("greater") test of correlation, given the sample size and significance level.
 #'
 #' @param power_target Numeric. The desired statistical power (between 0 and 1).
 #' @param n Integer. The sample size.
@@ -110,27 +115,38 @@ compute_ci_r <- function(r, n, conf.level = 0.95) {
 #' @noRd
 
   find_r_for_power <- function(power_target, n, alpha = 0.05) {
-    # Compute critical t value for the given alpha and sample size
-    t_crit <- qt(alpha, df = n - 2, lower.tail = FALSE)
+    out_len <- if (length(n) == 0L || length(power_target) == 0L) 0L else max(length(n), length(power_target))
+    if (out_len == 0L) return(numeric(0))
 
-    # Compute the corresponding critical correlation coefficient (rc)
-    r_crit <- sqrt(t_crit^2 / (t_crit^2 + n - 2))
+    n_vec <- rep_len(n, out_len)
+    p_vec <- rep_len(power_target, out_len)
+    r_final <- rep(NA_real_, out_len)
 
-    # Compute z-score for the target power
-    z_power <- qnorm(power_target)
+    valid <- !(is.na(n_vec) | is.na(p_vec) | n_vec <= 3 | p_vec <= 0 | p_vec >= 1)
+    if (any(valid)) {
+      nv <- n_vec[valid]
+      pv <- p_vec[valid]
+      # Compute critical t value for the given alpha and sample size
+      t_crit <- qt(alpha, df = nv - 2, lower.tail = FALSE)
 
-    # Compute the required Fisher's z for the correlation
-    z_required <- z_power / sqrt(n - 3) + atanh(r_crit)
+      # Compute the corresponding critical correlation coefficient (rc)
+      r_crit <- sqrt(t_crit^2 / (t_crit^2 + nv - 2))
 
-    # Initial estimate without correction
-    r_initial <- tanh(z_required)
+      # Compute z-score for the target power
+      z_power <- qnorm(pv)
 
-    # Apply inverse correction for small samples (approximate)
-    r_corrected <- r_initial - r_initial / (2 * (n - 1))
+      # Compute the required Fisher's z for the correlation
+      z_required <- z_power / sqrt(nv - 3) + atanh(r_crit)
 
-    # One step of fixed-point iteration to improve accuracy
-    z_corrected <- atanh(r_corrected) + r_corrected / (2 * (n - 1))
-    r_final <- tanh(z_required - r_corrected / (2 * (n - 1)))
+      # Initial estimate without correction
+      r_initial <- tanh(z_required)
+
+      # Apply inverse correction for small samples (approximate)
+      r_corrected <- r_initial - r_initial / (2 * (nv - 1))
+
+      # One step of fixed-point iteration to improve accuracy
+      r_final[valid] <- tanh(z_required - r_corrected / (2 * (nv - 1)))
+    }
 
     return(r_final)
   }
@@ -147,7 +163,7 @@ compute_ci_r <- function(r, n, conf.level = 0.95) {
 #' @param n_r Integer. The sample size of the replication study. Defaults to the same as `n_o`.
 #' @param confidence_level Numeric. The confidence level for the prediction interval. Defaults to 0.95.
 #'
-#' @return A named numeric vector with two elements:
+#' @return A list with two numeric vectors:
 #' \item{lower}{The lower bound of the prediction interval.}
 #' \item{upper}{The upper bound of the prediction interval.}
 #'
@@ -169,24 +185,32 @@ compute_ci_r <- function(r, n, conf.level = 0.95) {
 calculate_prediction_interval <- function(r, n_o, n_r = n_o, confidence_level = 0.95) {
 
   # Approach based on formula proposed in supplementary materials of Patil et al. (2016, https://doi.org/10.1177/1745691616646366)
+  out_len <- if (length(r) == 0L || length(n_o) == 0L || length(n_r) == 0L) 0L else max(length(r), length(n_o), length(n_r))
+  r_lower <- rep(NA_real_, out_len)
+  r_upper <- rep(NA_real_, out_len)
 
-  # Fisher's Z-transformation
-  Z <- 0.5 * log((1 + r) / (1 - r))
+  if (out_len > 0L) {
+    rv <- rep_len(r, out_len)
+    nov <- rep_len(n_o, out_len)
+    nrv <- rep_len(n_r, out_len)
+    valid <- !(is.na(rv) | is.na(nov) | is.na(nrv) | nov <= 3 | nrv <= 3 | abs(rv) >= 1)
 
-  # Standard error for prediction interval
-  SE_PI <- sqrt(1 / (n_o - 3) + 1 / (n_r - 3))
+    if (any(valid)) {
+      # Fisher's Z-transformation
+      Z <- atanh(rv[valid])
 
-  # Critical value for the normal distribution
-  alpha <- 1 - confidence_level
-  z_alpha <- qnorm(1 - alpha / 2)
+      # Standard error for prediction interval
+      SE_PI <- sqrt(1 / (nov[valid] - 3) + 1 / (nrv[valid] - 3))
 
-  # Prediction interval in Z-space
-  Z_lower <- Z - z_alpha * SE_PI
-  Z_upper <- Z + z_alpha * SE_PI
+      # Critical value for the normal distribution
+      alpha <- 1 - confidence_level
+      z_alpha <- qnorm(1 - alpha / 2)
 
-  # Inverse Z-transformation to get the prediction interval in r-space
-  r_lower <- (exp(2 * Z_lower) - 1) / (exp(2 * Z_lower) + 1)
-  r_upper <- (exp(2 * Z_upper) - 1) / (exp(2 * Z_upper) + 1)
+      # Prediction interval in Z-space and inverse Z-transformation to r-space
+      r_lower[valid] <- tanh(Z - z_alpha * SE_PI)
+      r_upper[valid] <- tanh(Z + z_alpha * SE_PI)
+    }
+  }
 
   return(list(lower = r_lower, upper = r_upper))
 

@@ -18,7 +18,7 @@
 #'     \strong{Sign:} Preserved.
 #'   }
 #'   \item{R-squared}{
-#'     \code{"r2"}, \code{"r^2"}, \code{"r²"}, \code{"r-square"} \cr
+#'     \code{"r2"}, \code{"r^2"}, \code{"r²"}, \code{"r-square"}, \code{"r-squared"} \cr
 #'     \strong{Conversion:} \eqn{r = \sqrt{R^2}}{r = sqrt(R²)} \cr
 #'     \strong{Sign:} Always positive (R² is non-directional).
 #'   }
@@ -40,7 +40,7 @@
 #'     \strong{Sign:} Always positive.
 #'   }
 #'   \item{Cohen's f / f²}{
-#'     \code{"f"}, \code{"cohen's f"}, \code{"f2"}, \code{"f^2"}, \code{"f²"} \cr
+#'     \code{"f"}, \code{"cohen's f"}, \code{"f2"}, \code{"f^2"}, \code{"f²"}, \code{"f-square"}, \code{"f-squared"} \cr
 #'     \strong{Conversion (f):} \eqn{d = 2f}{d = 2f}, then d to r. \cr
 #'     \strong{Conversion (f²):} \eqn{R^2 = \frac{f^2}{1 + f^2}}{R² = f² / (1 + f²)},
 #'     then \eqn{r = \sqrt{R^2}}{r = sqrt(R²)}. \cr
@@ -129,7 +129,7 @@ convert_effect_sizes <- function(es_values, es_types, quiet = FALSE, return_reas
   cannot_convert <- c("beta (std)", "partial etasq", "\u03C72", # χ2
                       "b (unstd)",
                       "b", "etasq (partial)",
-                      "cramer's v", "dz", "hazards ratio", "beta", "b",
+                      "cramer's v", "dz", "cohen's dz", "hazards ratio", "hazard ratio", "beta",
                       "percentage", "squared seminpartial correlation (sr2)",
                       "regression coefficient", "unstandardized coefficient",
                       "cohen's h", "h")
@@ -164,6 +164,8 @@ estype_map <- c(
   "f^2"             = "f2",
   "f\u00b2"         = "f2",        # f² (Unicode)
   "cohen's f^2"     = "f2",
+  "f-square"        = "f2",
+  "f-squared"       = "f2",
 
   # Correlations (r / phi)
   "r"               = "r",
@@ -175,6 +177,7 @@ estype_map <- c(
   "r^2"             = "r2",
   "r\u00b2"         = "r2",        # r² (Unicode)
   "r-square"        = "r2",
+  "r-squared"       = "r2",
 
   # Test statistics bucket
   "test statistic"  = "test-stat",
@@ -187,7 +190,7 @@ estype_map <- c(
 
 
 
-  es_values_r <- rep(NA, length(es_values))
+  es_values_r <- rep(NA_real_, length(es_values))
   na_reasons <- rep(NA_character_, length(es_values))
 
   # Identify non-convertible effect sizes present in the data
@@ -214,31 +217,36 @@ estype_map <- c(
     idx <- !is.na(es_types) & es_types == original_type & convertible
     estype <- estype_map[original_type]
     if (estype == "__NA__") {
-      es_values_r[idx] <- NA
+      es_values_r[idx] <- NA_real_
     } else if (estype == "r") {
       # Directly assign r values
       es_values_r[idx] <- as_numeric_verbose(es_values[idx], quiet = quiet)
     } else if (estype == "r2") {
-      # Convert r² to r
-      es_values_r[idx] <- sqrt(as_numeric_verbose(es_values[idx], quiet = quiet))
+      # Convert r² to r (guard invalid R² outside [0, 1])
+      r2s <- as_numeric_verbose(es_values[idx], quiet = quiet)
+      r2s[!is.na(r2s) & (r2s < 0 | r2s > 1)] <- NA_real_
+      es_values_r[idx] <- sqrt(r2s)
     } else if (estype == "d") {
       ds <- as_numeric_verbose(es_values[idx], quiet = quiet)
       es_values_r[idx] <- ds / sqrt(ds^2 + 4)
     } else if (estype == "or") {
       ors <- as_numeric_verbose(es_values[idx], quiet = quiet)
+      ors[!is.na(ors) & ors <= 0] <- NA_real_
       # per Sánchez-Meca, J., Marín-Martínez, F., & Chacón-Moscoso, S. (2003). Effect-size indices for dichotomized outcomes in meta-analysis. Psychological Methods, 8(4), 448-467.
       ds <- log(ors)*sqrt(3)/pi
       es_values_r[idx] <- ds / sqrt(ds^2 + 4)
     } else if (estype == "eta2") {
       eta2s <- as_numeric_verbose(es_values[idx], quiet = quiet)
+      eta2s[!is.na(eta2s) & (eta2s < 0 | eta2s >= 1)] <- NA_real_
       ds <- 2 * (sqrt(eta2s/(1 - eta2s))) # from esc package
-      es_values_r[idx] <-ds / sqrt(ds^2 + 4)
+      es_values_r[idx] <- ds / sqrt(ds^2 + 4)
     } else if (estype == "f") {
       fs <- as_numeric_verbose(es_values[idx], quiet = quiet)
       ds <- 2 * fs # from esc package
       es_values_r[idx] <- ds / sqrt(ds^2 + 4)
     } else if (estype == "f2") {
       f2s <- as_numeric_verbose(es_values[idx], quiet = quiet)
+      f2s[!is.na(f2s) & f2s < 0] <- NA_real_
       # Convert f^2 to r^2, then to r
       r2s <- f2s / (1 + f2s)
       es_values_r[idx] <- sqrt(r2s)
@@ -246,43 +254,49 @@ estype_map <- c(
       # Convert test statistics formatted in APA style to r
       vals <- es_values[idx]
       chi <- chi2_to_r(vals)
-      converted <- vapply(vals, FUN.VALUE = 1.5, function(x) {
-        x <- trimws(x)
+      converted <- vapply(vals, FUN.VALUE = NA_real_, function(x) {
+        if (is.na(x)) return(NA_real_)
+        x <- trimws(as.character(x))
 
-        # Match APA formatted test statistics
+        # Match APA formatted test statistics (supporting decimal df and leading decimals like .27)
         # t(df) = value
-        t_match <- grepl("^t\\(\\d+\\)\\s*=\\s*-?\\d+\\.?\\d*$", x)
+        t_pat <- "^t\\(\\s*(\\d+(?:\\.\\d+)?)\\s*\\)\\s*=\\s*(-?(?:\\d+\\.?\\d*|\\.\\d+))$"
         # F(df1, df2) = value
-        f_match <- grepl("^f\\(\\d+\\s*,\\s*\\d+\\)\\s*=\\s*\\d+\\.?\\d*$", x, ignore.case = TRUE)
+        f_pat <- "^f\\(\\s*(\\d+(?:\\.\\d+)?)\\s*,\\s*(\\d+(?:\\.\\d+)?)\\s*\\)\\s*=\\s*(\\d+\\.?\\d*|\\.\\d+)$"
         # z = value, N = value
-        z_match <- grepl("^z\\s*=\\s*-?\\d+\\.?\\d*\\s*,\\s*n\\s*=\\s*\\d+$", x, ignore.case = TRUE)
+        z_pat <- "^z\\s*=\\s*(-?(?:\\d+\\.?\\d*|\\.\\d+))\\s*,\\s*n\\s*=\\s*(\\d+)\\s*,?$"
 
-        if (t_match) {
-          # Extract df and t-value
-          df <- as_numeric_verbose(sub(".*t\\((\\d+)\\).*", "\\1", x), quiet = quiet)
-          tval <- as_numeric_verbose(sub(".*=\\s*(-?\\d+\\.?\\d*).*", "\\1", x), quiet = quiet)
+        t_m <- regmatches(x, regexec(t_pat, x, ignore.case = TRUE, perl = TRUE))[[1]]
+        if (length(t_m) == 3L) {
+          df <- as_numeric_verbose(t_m[2], quiet = quiet)
+          tval <- as_numeric_verbose(t_m[3], quiet = quiet)
+          if (is.na(df) || df <= 0 || is.na(tval)) return(NA_real_)
           return(tval / sqrt(tval^2 + df)) # Convert t to r
-        } else if (f_match) {
-          # Extract df1, df2, and F-value
-          df1 <- as_numeric_verbose(sub(".*f\\((\\d+)\\s*,.*", "\\1", x, ignore.case = TRUE), quiet = quiet)
-          df2 <- as_numeric_verbose(sub(".*f\\(\\d+\\s*,\\s*(\\d+)\\).*", "\\1", x, ignore.case = TRUE), quiet = quiet)
-          fval <- as_numeric_verbose(sub(".*=\\s*(\\d+\\.?\\d*).*", "\\1", x, ignore.case = TRUE))
+        }
 
-          if (df1 == 1) {
+        f_m <- regmatches(x, regexec(f_pat, x, ignore.case = TRUE, perl = TRUE))[[1]]
+        if (length(f_m) == 4L) {
+          df1 <- as_numeric_verbose(f_m[2], quiet = quiet)
+          df2 <- as_numeric_verbose(f_m[3], quiet = quiet)
+          fval <- as_numeric_verbose(f_m[4], quiet = quiet)
+          if (!is.na(df1) && df1 == 1 && !is.na(df2) && df2 > 0 && !is.na(fval) && fval >= 0) {
             # Convert F to t and then to r if df1 == 1
             tval <- sqrt(fval)
             return(tval / sqrt(tval^2 + df2))
           } else {
-            return(NA) # Not convertible
+            return(NA_real_) # Not convertible
           }
-        } else if (z_match) {
-          # Extract z-value and N
-          zval <- as_numeric_verbose(sub(".*z\\s*=\\s*(-?\\d+\\.?\\d*).*", "\\1", x, ignore.case = TRUE), quiet = quiet)
-          nval <- as_numeric_verbose(sub(".*n\\s*=\\s*(\\d+).*", "\\1", x, ignore.case = TRUE), quiet = quiet)
-          return(zval / sqrt(zval^2 + nval)) # Convert z to r
-        } else {
-          return(NA) # Not a valid test statistic format
         }
+
+        z_m <- regmatches(x, regexec(z_pat, x, ignore.case = TRUE, perl = TRUE))[[1]]
+        if (length(z_m) == 3L) {
+          zval <- as_numeric_verbose(z_m[2], quiet = quiet)
+          nval <- as_numeric_verbose(z_m[3], quiet = quiet)
+          if (is.na(nval) || nval <= 0 || is.na(zval)) return(NA_real_)
+          return(zval / sqrt(zval^2 + nval)) # Convert z to r
+        }
+
+        return(NA_real_) # Not a valid test statistic format
       })
       # Chi-squared statistics are handled by chi2_to_r()
       is_chi <- !is.na(chi$parsed) & chi$parsed
@@ -290,8 +304,8 @@ estype_map <- c(
       es_values_r[idx] <- converted
       na_reasons[idx] <- chi$na_reason
     } else {
-      warning("Effect size type ", estype, " not recognized. Setting to missing.")
-      es_values_r[idx] <- NA
+      if (!quiet) warning("Effect size type ", estype, " not recognized. Setting to missing.")
+      es_values_r[idx] <- NA_real_
     }
   }
   }
@@ -300,17 +314,19 @@ estype_map <- c(
   could_not_convert <- unique(es_types[!convertible & !is.na(es_types)])
 
   # Output messages in a clean format
-  if (length(unknown_types) > 0) {
-    warning("Unknown effect size types detected:\n  - ", paste(unknown_types, collapse = "\n  - "))
-  }
+  if (!quiet) {
+    if (length(unknown_types) > 0) {
+      warning("Unknown effect size types detected:\n  - ", paste(unknown_types, collapse = "\n  - "))
+    }
 
-  if (length(could_not_convert) > 0) {
-    message("\n", length(could_not_convert), " effect sizes used cannot be converted into a common metric:\n  - ",
-            paste(could_not_convert, collapse = "\n  - "))
-  }
+    if (length(could_not_convert) > 0) {
+      message("\n", length(could_not_convert), " effect sizes used cannot be converted into a common metric:\n  - ",
+              paste(could_not_convert, collapse = "\n  - "))
+    }
 
-  if (missing_count > 0) {
-    message("\n", missing_count, " rows had missing effect sizes or effect size types.\n")
+    if (missing_count > 0) {
+      message("\n", missing_count, " rows had missing effect sizes or effect size types.\n")
+    }
   }
 
   if (return_reasons) {
@@ -345,10 +361,10 @@ chi2_to_r <- function(x) {
   r <- rep(NA_real_, length(x))
   reason <- rep(NA_character_, length(x))
   reason[parsed & df != 1] <- "chi-squared with df > 1 cannot be converted to r"
-  reason[parsed & df == 1 & is.na(n)] <- "chi-squared without N cannot be converted to r"
-  too_large <- parsed & df == 1 & !is.na(n) & chi / n > 1
+  reason[parsed & df == 1 & (is.na(n) | n <= 0)] <- "chi-squared without N cannot be converted to r"
+  too_large <- parsed & df == 1 & !is.na(n) & n > 0 & chi / n > 1
   reason[too_large] <- "chi-squared / N > 1, so not a 2 x 2 contingency-table test with N units"
-  ok <- parsed & df == 1 & !is.na(n) & !too_large
+  ok <- parsed & df == 1 & !is.na(n) & n > 0 & !too_large
   r[ok] <- sqrt(chi[ok] / n[ok])
   data.frame(parsed = parsed, r = r, na_reason = reason, stringsAsFactors = FALSE)
 }
@@ -409,7 +425,7 @@ add_common_effect_sizes <- function(fred_data, es_value_columns = c("es_value_o"
                                     es_type_columns = c("es_type_o", "es_type_r"), es_common_names = c("es_o", "es_r"),
                                     coalesce_values = TRUE,
                                     not_convertible_columns = c("es_not_convertible_o", "es_not_convertible_r")) {
-  if (!all.equal(length(es_value_columns), length(es_type_columns), length(es_common_names))) {
+  if (length(unique(c(length(es_value_columns), length(es_type_columns), length(es_common_names)))) != 1L) {
     stop("Length of es_value_columns, es_type_columns, and es_common_names must be equal")
   }
   for (i in seq_along(es_value_columns)) {
@@ -420,40 +436,57 @@ add_common_effect_sizes <- function(fred_data, es_value_columns = c("es_value_o"
       stop("Column ", es_type_columns[i], " not found in FReD dataset")
     }
 
-    converted <- convert_effect_sizes(fred_data[, es_value_columns[i]], fred_data[, es_type_columns[i]],
+    converted <- convert_effect_sizes(fred_data[[es_value_columns[i]]], fred_data[[es_type_columns[i]]],
                                       return_reasons = TRUE)
     flag <- rep(NA_character_, nrow(fred_data))
     if (!is.na(not_convertible_columns[i]) && not_convertible_columns[i] %in% names(fred_data)) {
-      flag <- as.character(fred_data[, not_convertible_columns[i]])
-      flag[!is.na(flag) & trimws(flag) == ""] <- NA
+      flag <- as.character(fred_data[[not_convertible_columns[i]]])
+      flag[!is.na(flag) & trimws(flag) == ""] <- NA_character_
     }
     blocked <- !is.na(flag)
-    converted$r[blocked] <- NA
+    converted$r[blocked] <- NA_real_
     converted$na_reason[blocked] <- flag[blocked]
 
+    if (any(!is.na(converted$r) & abs(converted$r) > 1)) {
+      bad_ids <- if ("id" %in% names(fred_data)) unique(fred_data$id[which(abs(converted$r) > 1)]) else which(abs(converted$r) > 1)
+      warning("Some converted effect sizes are outside the range of -1 to 1. Check input IDs ",
+              paste(bad_ids, collapse = ", "), ". They will be set to missing.")
+      converted$r[abs(converted$r) > 1] <- NA_real_
+    }
+
+    if (any(!is.na(converted$r) & abs(converted$r) == 1)) {
+      eq_ids <- if ("id" %in% names(fred_data)) unique(fred_data$id[which(abs(converted$r) == 1)]) else which(abs(converted$r) == 1)
+      message("Some converted effect sizes are equal to -1 or 1. Check input IDs ", paste(eq_ids, collapse = ", "),
+              ". They will be set to .9999 / -.9999 respectively, but should be double-checked.")
+      converted$r[converted$r == 1] <- .9999
+      converted$r[converted$r == -1] <- -.9999
+    }
+
     if (coalesce_values && es_common_names[i] %in% names(fred_data)) {
-      prev_es <- as.numeric(fred_data[, es_common_names[i]])
+      prev_es <- suppressWarnings(as.numeric(fred_data[[es_common_names[i]]]))
 
       if (any(!is.na(prev_es) & abs(prev_es) > 1)) {
-        warning("Some existing effect sizes are outside the range of -1 to 1. Check input IDs ", paste(unique(fred_data$id[which(prev_es > 1)]), collapse = ", "),
+        bad_ids <- if ("id" %in% names(fred_data)) unique(fred_data$id[which(abs(prev_es) > 1)]) else which(abs(prev_es) > 1)
+        warning("Some existing effect sizes are outside the range of -1 to 1. Check input IDs ", paste(bad_ids, collapse = ", "),
                 ". They will set to missing.")
-        prev_es[abs(prev_es) > 1] <- NA
+        prev_es[abs(prev_es) > 1] <- NA_real_
       }
 
       if (any(!is.na(prev_es) & abs(prev_es) == 1)) {
-        message("Some existing effect sizes are entered as -1 or 1. Check input IDs ", paste(unique(fred_data$id[which(abs(prev_es) == 1)]), collapse = ", "),
+        eq_ids <- if ("id" %in% names(fred_data)) unique(fred_data$id[which(abs(prev_es) == 1)]) else which(abs(prev_es) == 1)
+        message("Some existing effect sizes are entered as -1 or 1. Check input IDs ", paste(eq_ids, collapse = ", "),
                 ". They will set to .9999 / -.9999 respectively, but should be double-checked.")
         prev_es[prev_es == 1] <- .9999
         prev_es[prev_es == -1] <- -.9999
       }
 
       # Do not refill effects that were deliberately left unconverted
-      prev_es[blocked | !is.na(converted$na_reason)] <- NA
-      fred_data[, es_common_names[i]] <- dplyr::coalesce(converted$r, prev_es)
+      prev_es[blocked | !is.na(converted$na_reason)] <- NA_real_
+      fred_data[[es_common_names[i]]] <- dplyr::coalesce(converted$r, prev_es)
     } else {
-      fred_data[, es_common_names[i]] <- converted$r
+      fred_data[[es_common_names[i]]] <- converted$r
     }
-    fred_data[, paste0(es_common_names[i], "_na_reason")] <- converted$na_reason
+    fred_data[[paste0(es_common_names[i], "_na_reason")]] <- converted$na_reason
 
   }
 
@@ -462,7 +495,8 @@ add_common_effect_sizes <- function(fred_data, es_value_columns = c("es_value_o"
 
 #' Align effect direction
 #'
-#' Ensure that all original effects are coded as positive, and that replication effects are coded in the same direction (so that they *would* be positive if successful.
+#' Ensure that all original effects are coded as positive, and that replication effects are coded in the same direction (so that they *would* be positive if successful).
+#' Rows where `es_original` is `0` or `NA` have no defined direction, so their `es_replication` value is preserved as-is rather than zeroed out or set to `NA`.
 #'
 #' @param fred_data FReD dataset
 #' @param es_original Character. Name of original effect size column.
@@ -470,9 +504,10 @@ add_common_effect_sizes <- function(fred_data, es_value_columns = c("es_value_o"
 #' @return Augmented FReD dataset with aligned effect directions.
 
 align_effect_direction <- function(fred_data, es_original = "es_o", es_replication = "es_r") {
-  orig_direction <- sign(fred_data[, es_original])
-  fred_data[, es_original] <- abs(fred_data[, es_original])
-  fred_data[, es_replication] <- fred_data[, es_replication] * orig_direction
+  es_orig <- fred_data[[es_original]]
+  flip <- !is.na(es_orig) & es_orig < 0
+  fred_data[[es_original]] <- abs(es_orig)
+  fred_data[[es_replication]][flip] <- -fred_data[[es_replication]][flip]
   fred_data
 }
 
@@ -501,7 +536,8 @@ add_uncertainty <- function(fred_data, es_value_columns = c("es_o", "es_r"),
                             ci_lower_columns = c("ci.lower_o", "ci.lower_r"),
                             ci_upper_columns = c("ci.upper_o", "ci.upper_r"),
                             p_values = c("p_value_o", "p_value_r")) {
-  if (!all.equal(length(es_value_columns), length(N_columns), length(vi_columns), length(ci_lower_columns), length(ci_upper_columns))) {
+  if (length(unique(c(length(es_value_columns), length(N_columns), length(vi_columns),
+                      length(ci_lower_columns), length(ci_upper_columns), length(p_values)))) != 1L) {
     stop("Length of all column character vectors must be equal")
   }
   for (i in seq_along(es_value_columns)) {
@@ -512,14 +548,17 @@ add_uncertainty <- function(fred_data, es_value_columns = c("es_o", "es_r"),
       stop("Column ", N_columns[i], " not found in FReD dataset")
     }
 
-    fred_data[, vi_columns[i]] <- metafor::escalc(measure = "COR", ri = fred_data[, es_value_columns[i]], ni = fred_data[, N_columns[i]])$vi
+    r_vals <- fred_data[[es_value_columns[i]]]
+    n_vals <- fred_data[[N_columns[i]]]
 
-    ci <- compute_ci_r(r =  fred_data[, es_value_columns[i]], n = fred_data[, N_columns[i]])
+    fred_data[[vi_columns[i]]] <- metafor::escalc(measure = "COR", ri = r_vals, ni = n_vals)$vi
 
-    fred_data[, ci_lower_columns[i]] <- ci[3]
-    fred_data[, ci_upper_columns[i]] <- ci[4]
+    ci <- compute_ci_r(r = r_vals, n = n_vals)
 
-    fred_data[, p_values[i]] <- p_from_r(fred_data[, es_value_columns[i]], fred_data[, N_columns[i]])
+    fred_data[[ci_lower_columns[i]]] <- ci$lower
+    fred_data[[ci_upper_columns[i]]] <- ci$upper
+
+    fred_data[[p_values[i]]] <- p_from_r(r_vals, n_vals)
 
     }
 
@@ -566,32 +605,47 @@ code_replication_outcomes <- function(fred_data,
       signal = ifelse(!!p_replication_sym < 0.05, "signal", "no signal"),
       os_ns = ifelse(!!p_original_sym >= 0.05, "OS not significant", NA_character_),
       consistent = ifelse(!!ci_lower_replication_sym <= !!es_original_sym & !!ci_upper_replication_sym >= !!es_original_sym, "consistent", NA_character_),
-      inconsistent = case_when(
-        is.na(consistent) & signal == "signal" & !!ci_lower_replication_sym > !!es_original_sym ~ "inconsistent, larger",
-        is.na(consistent) & signal == "signal" & !!ci_upper_replication_sym < !!es_original_sym ~ "inconsistent, smaller",
-        is.na(consistent) & signal == "signal" & sign(!!es_replication_sym) != sign(!!es_original_sym) ~ "inconsistent, opposite",
-        is.na(consistent) & signal != "signal" & !!ci_upper_replication_sym < !!es_original_sym ~ "inconsistent",
-        TRUE ~ NA_character_
+      inconsistent = dplyr::case_when(
+        is.na(.data$consistent) & .data$signal == "signal" &
+          !is.na(!!es_original_sym) & !is.na(!!es_replication_sym) &
+          !!es_original_sym != 0 & !!es_replication_sym != 0 &
+          sign(!!es_replication_sym) != sign(!!es_original_sym) ~ "inconsistent, opposite",
+        is.na(.data$consistent) & .data$signal == "signal" &
+          ifelse(!!es_original_sym < 0, !!ci_upper_replication_sym < !!es_original_sym, !!ci_lower_replication_sym > !!es_original_sym) ~ "inconsistent, larger",
+        is.na(.data$consistent) & .data$signal == "signal" &
+          ifelse(!!es_original_sym < 0, !!ci_lower_replication_sym > !!es_original_sym, !!ci_upper_replication_sym < !!es_original_sym) ~ "inconsistent, smaller",
+        is.na(.data$consistent) & .data$signal != "signal" &
+          (!!ci_upper_replication_sym < !!es_original_sym | !!ci_lower_replication_sym > !!es_original_sym) ~ "inconsistent",
+        .default = NA_character_
       )
     ) %>%
     dplyr::mutate(
       consistency = dplyr::coalesce(.data$os_ns, .data$consistent, .data$inconsistent),
       result = dplyr::case_when(
         !!p_original_sym >= 0.05 ~ "OS not significant",
-        !!p_replication_sym < 0.05 & sign(!!es_original_sym) == sign(!!es_replication_sym) ~ "successful replication",
-        !!p_replication_sym >= 0.05 | sign(!!es_original_sym) != sign(!!es_replication_sym) ~ "failed replication",
-        TRUE ~ NA_character_
+        !!p_original_sym < 0.05 & !!p_replication_sym < 0.05 &
+          !is.na(!!es_original_sym) & !is.na(!!es_replication_sym) &
+          !!es_original_sym != 0 & !!es_replication_sym != 0 &
+          sign(!!es_original_sym) == sign(!!es_replication_sym) ~ "successful replication",
+        !!p_original_sym < 0.05 & (
+          !!p_replication_sym >= 0.05 |
+            (!!p_replication_sym < 0.05 &
+               !is.na(!!es_original_sym) & !is.na(!!es_replication_sym) &
+               !!es_original_sym != 0 & !!es_replication_sym != 0 &
+               sign(!!es_original_sym) != sign(!!es_replication_sym))
+        ) ~ "failed replication",
+        .default = NA_character_
       ),
       result2 = paste(.data$signal, .data$consistency, sep = " - ")
     ) %>%
-    dplyr::select(-.data$consistent, -.data$inconsistent, -.data$os_ns)
+    dplyr::select(-dplyr::all_of(c("consistent", "inconsistent", "os_ns")))
 
   return(fred_data)
 }
 
 #' Add power
 #'
-#' Estimates the power of the replication study, given the original effect size, the sample size of the replication study, and the usual focus on a two-tailed test.
+#' Estimates the power of the replication study, given the original effect size, the sample size of the replication study, and a one-tailed ("greater") test.
 #'
 #' @param fred_data FReD dataset
 #' @param es_original Character. Name of original effect size column.
@@ -600,14 +654,20 @@ code_replication_outcomes <- function(fred_data,
 #' @return Augmented FReD dataset with power column.
 
 add_replication_power <- function(fred_data, es_original = "es_o", N_replication = "n_r", power_column = "power_r") {
-  # NA where N_replication is missing
-  fred_data[, power_column] <- NA
-  # Return 0 where sample_replication < 4, as pwr.r.test does not work for n < 4
+  es_vals <- fred_data[[es_original]]
+  n_vals <- fred_data[[N_replication]]
+
+  # NA_real_ where N_replication or es_original is missing
+  power_vals <- rep(NA_real_, nrow(fred_data))
+  # Return 0 where 0 < sample_replication < 4 (with valid es_original), as power calculation requires n >= 4
   # This will underestimate power for tiny samples, but they should be visible as low power rather than missing
-  fred_data[fred_data[, N_replication] %>% {!is.na(.) & . < 4}, power_column] <- 0
+  tiny_n <- !is.na(es_vals) & abs(es_vals) < 1 & !is.na(n_vals) & n_vals > 0 & n_vals < 4
+  power_vals[tiny_n] <- 0
   # Return power where sample_replication >= 4
-  fred_data[fred_data[, N_replication] %>% {!is.na(.) & . >= 4}, power_column] <-
-    compute_power_r(r = fred_data[fred_data[, N_replication] %>% {!is.na(.) & . >= 4}, es_original], n = fred_data[fred_data[, N_replication] %>% {!is.na(.) & . >= 4}, N_replication])
+  valid_n <- !is.na(es_vals) & !is.na(n_vals) & n_vals >= 4
+  power_vals[valid_n] <- compute_power_r(r = es_vals[valid_n], n = n_vals[valid_n])
+
+  fred_data[[power_column]] <- power_vals
   fred_data
 }
 
@@ -627,17 +687,17 @@ add_replication_power <- function(fred_data, es_original = "es_o", N_replication
 
 p_from_r <- function(r, N) {
 
-    if (!is.numeric(r) || !is.numeric(N)) {
+  if (!is.numeric(r) || !is.numeric(N)) {
     stop("Both 'r' and 'N' must be numeric")
   }
   if (length(r) != length(N)) {
     stop("Length of 'r' and 'N' must be the same")
   }
 
-  p_value <- rep(NA, length(r))
+  p_value <- rep(NA_real_, length(r))
 
-  # Handle valid cases (non-NA, N > 2)
-  valid_indices <- !(is.na(r) | is.na(N) | N <= 2)
+  # Handle valid cases (non-NA, N > 2, |r| < 1)
+  valid_indices <- !(is.na(r) | is.na(N) | N <= 2 | abs(r) >= 1)
 
   if (any(valid_indices)) {
     t_value <- r[valid_indices] * sqrt((N[valid_indices] - 2) / (1 - r[valid_indices]^2))
@@ -659,7 +719,7 @@ p_from_r <- function(r, N) {
 
 add_sampling_variances <- function(fred_data, es_value_columns = c("es_o", "es_r"),
                                    N_columns = c("n_o", "n_r"), vi_columns = c("vi_o", "vi_r")) {
-  if (!all.equal(length(es_value_columns), length(N_columns))) {
+  if (length(unique(c(length(es_value_columns), length(N_columns), length(vi_columns)))) != 1L) {
     stop("Length of es_value_columns, N_columns and vi_columns must be equal")
   }
   for (i in seq_along(es_value_columns)) {
@@ -669,7 +729,7 @@ add_sampling_variances <- function(fred_data, es_value_columns = c("es_o", "es_r
     if (!N_columns[i] %in% colnames(fred_data)) {
       stop("Column ", N_columns[i], " not found in FReD dataset")
     }
-    fred_data[, vi_columns[i]] <- metafor::escalc(measure = "COR", ri = fred_data[, es_value_columns[i]], ni = fred_data[, N_columns[i]], data = fred_data)$vi
+    fred_data[[vi_columns[i]]] <- metafor::escalc(measure = "COR", ri = fred_data[[es_value_columns[i]]], ni = fred_data[[N_columns[i]]])$vi
   }
   fred_data
 }
@@ -679,8 +739,8 @@ add_sampling_variances <- function(fred_data, es_value_columns = c("es_o", "es_r
 #' This function calculates and appends the standard error and z-score
 #' for z-curve analysis based on the original effect size and sample size.
 #'
-#' @param fred_data A dataframe containing `es_original`
-#'   for the effect size of the original study, and `n_original` for the
+#' @param fred_data A dataframe containing `es_o`
+#'   for the effect size of the original study, and `n_o` for the
 #'   sample size of the original study.
 #' @return A dataframe with the original `fred_data` and two additional columns:
 #'   `se` for the standard error, and `z` for the z-score.
@@ -693,14 +753,14 @@ augment_for_zcurve <- function(fred_data) {
     stop("fred_data must contain es_o and n_o columns")
   }
 
-  # Initialize se and z as NA
-  fred_data$se <- fred_data$z <- NA
+  # Initialize se and z as NA_real_
+  fred_data$se <- fred_data$z <- rep(NA_real_, nrow(fred_data))
 
-  valid_indices <- !(is.na(fred_data$es_o) | is.na(fred_data$n_o) | fred_data$n_o <= 3)
+  valid_indices <- !(is.na(fred_data$es_o) | is.na(fred_data$n_o) | fred_data$n_o <= 3 | abs(fred_data$es_o) >= 1)
 
   if (any(valid_indices)) {
     # Fisher's z transformation
-    z <- 0.5 * (log(1 + fred_data$es_o[valid_indices]) - log(1 - fred_data$es_o[valid_indices]))
+    z <- atanh(fred_data$es_o[valid_indices])
     fred_data$se[valid_indices] <- 1 / sqrt(fred_data$n_o[valid_indices] - 3)
     fred_data$z[valid_indices] <- z / fred_data$se[valid_indices]
   }

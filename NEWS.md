@@ -4,8 +4,13 @@ This version history contains noteworthy changes. For a full history of changes,
 
 ## New features
 - Added **Reported Success** as a success criterion in `assess_replication_outcome()` (`criterion = "reported_success"`) and the FReD Explorer. It uses the outcome reported by the replication authors, as coded in the `reported_success` variable, and matches the criterion of the same name in the web-based Explorer. The default criterion is unchanged.
+- `assess_replication_outcome()` can now optionally evaluate coded p-values from the dataset (with fallback to `p_from_r()`) for `"significance_r"` and `"homogeneity_significance"`; see `?assess_replication_outcome` for details ([5e631e5](https://github.com/forrtproject/FReD/commit/5e631e5)).
 
 ## Bug fixes
+- Fixed offline snapshot and `read_fred()` type coercion so `pval_value_o`/`pval_value_r` are numeric and `es_value_o`/`es_value_r` stay character by default, recovering ~1,220 APA test-statistic strings previously lost as `NA` ([5e631e5](https://github.com/forrtproject/FReD/commit/5e631e5), [1e8c225](https://github.com/forrtproject/FReD/commit/1e8c225)).
+- Fixed replication outcome bugs in `assess_replication_outcome()` and `code_replication_outcomes()` (reversal detection in `significance_agg`, unreachable `"inconsistent, opposite"` labels, `QEp` boundary and missing-data handling in `homogeneity_significance`, and `NA` p-value classification) ([5e631e5](https://github.com/forrtproject/FReD/commit/5e631e5), [1e8c225](https://github.com/forrtproject/FReD/commit/1e8c225)).
+- Fixed effect-size parsing and helper edge cases: `align_effect_direction()` preserves `es_r` when `es_o` is `0` or `NA`; `convert_effect_sizes()` supports decimal `df`, leading decimals, and `r-squared`/`f-square` aliases; `p_from_r()` and interval/power helpers guard invalid `n` and `|r| >= 1` ([5e631e5](https://github.com/forrtproject/FReD/commit/5e631e5), [1e8c225](https://github.com/forrtproject/FReD/commit/1e8c225)).
+- Fixed FReD Explorer filtering/plotting edge cases and prevented `update_offline_data()` from silently saving stale snapshots on read errors ([5e631e5](https://github.com/forrtproject/FReD/commit/5e631e5), [1e8c225](https://github.com/forrtproject/FReD/commit/1e8c225)).
 - Chi-squared statistics are only converted to r when they can come from a 2 x 2 contingency table: chi2(1) with N and chi2 / N <= 1. Other chi-squared values (df > 1, no N, chi2 / N > 1) return `NA` with a reason instead of impossible values such as r = 1.19 (forrtproject/fred-data#66).
 - `add_common_effect_sizes()` honours dataset flags (`es_not_convertible_o`, `es_not_convertible_r`) for chi2(1) from Wald, likelihood-ratio, model-fit or goodness-of-fit tests, and records reasons in `es_o_na_reason` / `es_r_na_reason`.
 

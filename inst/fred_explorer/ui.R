@@ -36,7 +36,7 @@ moderator_choices <- list(
   "Original Effect Size" = "es_o",
   "Journal" = "orig_journal",
   "Year of Original Publication" = "orig_year",
-  "Power of Replication Study" = "power"
+  "Power of Replication Study" = "power_r"
 )
 
 # Sidebar content

@@ -79,6 +79,53 @@ bind_rows_with_characters <- function(..., .id = NULL) {
 }
 
 
+#' Normalize column types on a raw FReD data frame
+#'
+#' Ensures an `id` column exists and numeric columns are coerced consistently
+#' across both online and offline data paths, while honouring
+#' `retain_es_as_character`.
+#'
+#' @param fred_data A data frame containing FReD data.
+#' @param retain_es_as_character Should `es_value_o` and `es_value_r` be retained
+#'   as character so APA-formatted test statistics are not coerced to `NA`?
+#' @param verbose Passed to [coerce_to_numeric()].
+#' @return Normalized FReD data frame with original attributes preserved.
+#' @noRd
+normalize_fred_data <- function(fred_data, retain_es_as_character = TRUE, verbose = FALSE) {
+  last_updated <- attr(fred_data, "last_updated")
+
+  # Add id column if not present (use fred_id or row number)
+  if (!"id" %in% names(fred_data)) {
+    if ("fred_id" %in% names(fred_data)) {
+      fred_data$id <- fred_data$fred_id
+    } else {
+      fred_data$id <- seq_len(nrow(fred_data))
+    }
+  }
+
+  numeric_variables <- c("n_o", "n_r", "pval_value_o", "pval_value_r")
+  if (!isTRUE(retain_es_as_character)) {
+    numeric_variables <- c(numeric_variables, "es_value_o", "es_value_r")
+  } else {
+    for (es_col in intersect(c("es_value_o", "es_value_r"), names(fred_data))) {
+      if (!is.character(fred_data[[es_col]])) {
+        fred_data[[es_col]] <- as.character(fred_data[[es_col]])
+      }
+    }
+  }
+
+  # Only coerce variables that exist in the dataset
+  numeric_variables <- intersect(numeric_variables, names(fred_data))
+
+  fred_data <- coerce_to_numeric(fred_data, numeric_variables, id_var = "id", verbose = verbose)
+
+  if (!is.null(last_updated)) {
+    attr(fred_data, "last_updated") <- last_updated
+  }
+
+  fred_data
+}
+
 #' Read the FReD dataset
 #'
 #' This function loads the FReD dataset into R. It merges the data from the different sheets into one data frame.
@@ -90,33 +137,25 @@ bind_rows_with_characters <- function(..., .id = NULL) {
 
 read_fred <- function(data = get_param("FRED_DATA_FILE"), retain_es_as_character = TRUE, verbose = FALSE) {
 
-  if (get_param("FRED_OFFLINE")) return(return_inbuilt("data"))
+  if (get_param("FRED_OFFLINE")) {
+    return(normalize_fred_data(return_inbuilt("data"),
+                               retain_es_as_character = retain_es_as_character,
+                               verbose = verbose))
+  }
 
   tryCatch({
 
     # New data format: single sheet with all data
     fred_data <- safe_read_xl(data, url = get_param("FRED_DATA_URL"), sheet = 1)
 
-    # Add id column if not present (use fred_id or row number)
-    if (!"id" %in% names(fred_data)) {
-      if ("fred_id" %in% names(fred_data)) {
-        fred_data$id <- fred_data$fred_id
-      } else {
-        fred_data$id <- seq_len(nrow(fred_data))
-      }
-    }
-
-    numeric_variables <- c("n_o", "n_r", "es_value_o", "es_value_r", "pval_value_o", "pval_value_r")
-
-    # Only coerce variables that exist in the dataset
-    numeric_variables <- intersect(numeric_variables, names(fred_data))
-
-    fred_data <- coerce_to_numeric(fred_data, numeric_variables, id_var = "id", verbose = verbose)
-
-    return(fred_data)
+    return(normalize_fred_data(fred_data,
+                               retain_es_as_character = retain_es_as_character,
+                               verbose = verbose))
 
     }, error = function(e) {
-      return(return_inbuilt("data"))
+      return(normalize_fred_data(return_inbuilt("data"),
+                                 retain_es_as_character = retain_es_as_character,
+                                 verbose = verbose))
     })
 
 }
@@ -134,26 +173,35 @@ read_fred <- function(data = get_param("FRED_DATA_FILE"), retain_es_as_character
 #'
 #' @return The input data frame with specified variables coerced to numeric (if possible).
 
-coerce_to_numeric <- function(df, numeric_vars, id_var, verbose = TRUE) {
+coerce_to_numeric <- function(df, numeric_vars, id_var = NULL, verbose = TRUE) {
   problematic_entries <- list()
+  has_id <- !is.null(id_var) && length(id_var) == 1 && id_var %in% names(df)
 
   for (var in numeric_vars) {
+    # Convert factors via character first so level labels (not integer codes) are parsed
+    raw_val <- if (is.factor(df[[var]])) as.character(df[[var]]) else df[[var]]
     # Suppress "NAs introduced by coercion" warnings - we detect and report these ourselves below
-    problematic_rows <- which(!is.na(df[[var]]) & is.na(suppressWarnings(as.numeric(df[[var]]))))
+    coerced <- suppressWarnings(as.numeric(raw_val))
+    problematic_rows <- which(!is.na(raw_val) & is.na(coerced))
 
     if (length(problematic_rows) > 0) {
-      problematic_entries[[var]] <- df[problematic_rows, id_var, drop = FALSE]
+      if (has_id) {
+        problematic_entries[[var]] <- df[problematic_rows, id_var, drop = FALSE]
+      } else {
+        problematic_entries[[var]] <- data.frame(row = problematic_rows)
+      }
     }
 
-    df[[var]] <- suppressWarnings(as.numeric(df[[var]]))
+    df[[var]] <- coerced
   }
 
   if (length(problematic_entries) > 0) {
     if (isTRUE(verbose)) {
       warning_message <- "The following fields contain values that could not be coerced to numeric:\n"
+      id_col <- if (has_id) id_var else "row"
       for (var in names(problematic_entries)) {
         warning_message <- paste0(warning_message, "Variable '", var, "' has issues in IDs: ",
-                                  paste(problematic_entries[[var]][[id_var]], collapse = ", "), "\n")
+                                  paste(problematic_entries[[var]][[id_col]], collapse = ", "), "\n")
       }
       warning(warning_message)
     } else if (is.null(verbose)) {
@@ -176,6 +224,14 @@ coerce_to_numeric <- function(df, numeric_vars, id_var, verbose = TRUE) {
 #' @return FReD dataset with cleaned variables
 
 clean_variables <- function(fred_data) {
+
+  # Guarantee core numeric columns are numeric even when called directly (not via read_fred)
+  numeric_cols <- intersect(c("n_o", "n_r", "pval_value_o", "pval_value_r"), names(fred_data))
+  non_numeric_cols <- numeric_cols[!vapply(fred_data[numeric_cols], is.numeric, logical(1))]
+  if (length(non_numeric_cols) > 0) {
+    id_col <- if ("id" %in% names(fred_data)) "id" else NULL
+    fred_data <- coerce_to_numeric(fred_data, non_numeric_cols, id_var = id_col, verbose = FALSE)
+  }
 
   # Initialize columns that may not exist in new data format
   if (!"description" %in% names(fred_data)) fred_data$description <- ""
@@ -276,20 +332,32 @@ load_retractionwatch <- function(data = get_param("RETRACTIONWATCH_DATA_FILE")) 
 
 update_offline_data <- function(data_file = get_param("FRED_DATA_FILE"), items = c("data", "data_description", "data_changelog", "citation")) {
   offline_param <- get_param("FRED_OFFLINE")
-  if (offline_param) use_FReD_offline(FALSE)
+  if (offline_param) {
+    use_FReD_offline(FALSE)
+    on.exit(use_FReD_offline(TRUE), add = TRUE)
+  }
   success_items <- c()
   failed_items <- c()
 
   update_item <- function(item) {
     tryCatch({
       if (item == "data") {
-        data <- read_fred(data_file)
+        # Read directly without silent fallback to inbuilt snapshot or another URL
+        raw_data <- openxlsx::read.xlsx(data_file, sheet = 1)
+        data <- normalize_fred_data(raw_data, retain_es_as_character = TRUE, verbose = FALSE)
       } else if (item == "data_description") {
-        data <- load_variable_descriptions(data = data_file)
+        # Read directly from data_file; skip without re-stamping if the single-sheet workbook has no Key Variables sheet
+        sheets <- openxlsx::getSheetNames(data_file)
+        if (!"Key Variables" %in% sheets) {
+          return(invisible(NULL))
+        }
+        data <- openxlsx::read.xlsx(data_file, sheet = "Key Variables", startRow = 2)
       } else if (item == "data_changelog") {
         data <- get_dataset_changelog()
       } else if (item == "citation") {
         data <- create_citation()
+      } else {
+        stop("Unknown snapshot item: ", item)
       }
       attr(data, "last_updated") <- Sys.time()
       file_path <- system.file("extdata", "snapshot", paste0(item, ".RDS"), package = "FReD")
@@ -310,5 +378,5 @@ update_offline_data <- function(data_file = get_param("FRED_DATA_FILE"), items =
     message("The following items failed to update: ", paste(failed_items, collapse = ", "))
   }
 
-  if (offline_param) use_FReD_offline(TRUE)
+  invisible(list(succeeded = success_items, failed = failed_items))
 }

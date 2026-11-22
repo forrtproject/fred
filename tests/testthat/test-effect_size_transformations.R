@@ -289,3 +289,36 @@ test_that("add_common_effect_sizes honours dataset flags for non-convertible eff
   # Missing flag column for the replication side is ignored
   expect_equal(out$es_r[2], sqrt(2 / 40))
 })
+
+test_that("convert_effect_sizes handles decimal df, leading decimals, aliases, and invalid domains", {
+  expect_equal(
+    convert_effect_sizes(c("t(84) = .27", "t(173.36) = 5.37", "F(1, 62.9) = 8.5", "0.25", "0.05"),
+                         c("test statistic", "test statistic", "test statistic", "r-squared", "f-square")),
+    c(0.27 / sqrt(0.27^2 + 84), 5.37 / sqrt(5.37^2 + 173.36), sqrt(8.5) / sqrt(8.5 + 62.9), 0.5, sqrt(0.05 / 1.05)),
+    tolerance = 1e-6
+  )
+  expect_silent(bad <- convert_effect_sizes(c("-0.1", "0", "1.0", "0.5"), c("r2", "or", "etasq", "unknown type"), quiet = TRUE))
+  expect_true(all(is.na(bad)) && is.double(bad))
+})
+
+test_that("p_from_r, align_effect_direction, and code_replication_outcomes handle edge cases", {
+  expect_no_warning(p <- p_from_r(c(NA_real_, 1, 1.5, 0.5), c(50, 50, 50, 2)))
+  expect_true(all(is.na(p)) && is.double(p))
+
+  aligned <- align_effect_direction(data.frame(es_o = c(-0.3, 0, NA_real_), es_r = c(-0.2, 0.15, -0.25)))
+  expect_equal(aligned$es_r, c(0.2, 0.15, -0.25))
+
+  coded <- code_replication_outcomes(data.frame(
+    es_o = c(0.4, 0.4, NA_real_),
+    es_r = c(-0.35, 0.15, 0.05),
+    p_value_o = c(0.001, 0.001, NA_real_),
+    p_value_r = c(0.001, 0.01, 0.60),
+    ci.lower_r = c(-0.50, 0.05, -0.15),
+    ci.upper_r = c(-0.20, 0.25, 0.25)
+  ))
+  expect_equal(coded$consistency[1:2], c("inconsistent, opposite", "inconsistent, smaller"))
+  expect_true(is.na(coded$result[3]))
+
+  pw <- add_replication_power(data.frame(es_o = c(NA_real_, 0.3, 0.3), n_r = c(2, 2, 0)))
+  expect_equal(pw$power_r, c(NA_real_, 0, NA_real_))
+})

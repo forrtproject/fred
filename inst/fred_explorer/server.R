@@ -69,14 +69,14 @@ server <- function(input, output, session) {
     if (input$source == "All studies") {
       df_temp <- df_temp
     } else {
-      df_temp <- df_temp[df_temp$source == input$source, ]
+      df_temp <- df_temp[!is.na(df_temp$source) & df_temp$source == input$source, ]
     }
 
     # minpower
     if (min_power_debounced() == .05) {
       df_temp <- df_temp
     } else {
-      df_temp <- df_temp[df_temp$power_r >= min_power_debounced(), ]
+      df_temp <- df_temp[!is.na(df_temp$power_r) & df_temp$power_r >= min_power_debounced(), ]
     }
 
     # validated
@@ -137,7 +137,7 @@ server <- function(input, output, session) {
   }
 
   observeEvent({input$success_criterion; df_temp()}, {
-    if (nrow(df_temp()) > 1) {
+    if (nrow(df_temp()) > 0) {
       updated_df <- df_temp() %>%
         arrange(ref_o) %>%
         filter(if (input$validated == "TRUE") validated == 1 else TRUE) %>%
@@ -313,7 +313,10 @@ server <- function(input, output, session) {
       theme_classic() +
       geom_vline(xintercept = xlims, col = rgb(0, 0, 0, .05), lwd = 0.5, lty = 1) +
       theme(text = element_text(size = 14)) +
-      xlim(c(floor(min(df_temp$ci.lower_o)), ceiling(max(df_temp$ci.upper_o, na.rm = TRUE)))) +
+      xlim(c(
+        if (any(!is.na(df_temp$ci.lower_o))) floor(min(df_temp$ci.lower_o, na.rm = TRUE)) else -1,
+        if (any(!is.na(df_temp$ci.upper_o))) ceiling(max(df_temp$ci.upper_o, na.rm = TRUE)) else 1
+      )) +
       xlab("r") +
       ylab("") +
       theme(legend.position = "none") +
@@ -707,13 +710,8 @@ server <- function(input, output, session) {
   # REFERENCE CHECKER -------------------------------------------------------
 
   output$references_barplot <- plotly::renderPlotly({
-    if (nchar(input$refcheck) > 0) {
-      entries <- as.character(input$refcheck)
-    }
-
-    if (nchar(input$refcheck) > 0) {
-      entries <- as.character(input$refcheck)
-    }
+    validate(need(!is.null(input$refcheck) && nchar(trimws(input$refcheck)) > 0, "Please enter references or DOIs"))
+    entries <- as.character(input$refcheck)
 
     entries <- unlist(base::strsplit(entries, split = "\n")) # |-
     dois <- tolower(stringr::str_extract(entries, "10.\\d{4,9}/[-._;()/:a-z0-9A-Z]+"))
@@ -752,9 +750,8 @@ server <- function(input, output, session) {
   })
 
   output$references_doi <- shiny::renderTable({
-    if (nchar(input$refcheck) > 0) {
-      entries <- as.character(input$refcheck)
-    }
+    validate(need(!is.null(input$refcheck) && nchar(trimws(input$refcheck)) > 0, "Please enter references or DOIs"))
+    entries <- as.character(input$refcheck)
 
     entries <- unlist(base::strsplit(entries, split = "\n")) # |-
     dois <- tolower(stringr::str_extract(entries, "10.\\d{4,9}/[-._;()/:a-z0-9A-Z]+"))
