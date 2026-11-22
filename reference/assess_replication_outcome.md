@@ -15,7 +15,13 @@ assess_replication_outcome(
   n_r,
   criterion,
   reported_success = NULL,
-  result = NULL
+  result = NULL,
+  pval_value_o = NULL,
+  pval_type_o = NULL,
+  pval_value_r = NULL,
+  pval_type_r = NULL,
+  pval_tails_o = NULL,
+  pval_tails_r = NULL
 )
 ```
 
@@ -57,6 +63,45 @@ assess_replication_outcome(
   returned by
   [`load_fred_data()`](https://forrt.org/fred/reference/load_fred_data.md).
 
+- pval_value_o:
+
+  Numeric (or numeric string). Optional coded p-values for the original
+  study (the `pval_value_o` column of FReD). Opt-in: used by
+  `"significance_r"` and `"homogeneity_significance"` when supplied,
+  falling back to `p_from_r(es_o, n_o)` where missing or indeterminate.
+
+- pval_type_o:
+
+  Character. Optional inequality type labels for `pval_value_o` (e.g.,
+  `"l (<)"`, `"e (=)"`, `"g (>)"`, `"ge (>=)"`, `"le (<=)"`). Defaults
+  to exact equality (`"="`) when omitted.
+
+- pval_value_r:
+
+  Numeric (or numeric string). Optional coded p-values for the
+  replication study (the `pval_value_r` column of FReD). Opt-in: used by
+  `"significance_r"` when supplied, falling back to
+  `p_from_r(es_r, n_r)` where missing or indeterminate.
+
+- pval_type_r:
+
+  Character. Optional inequality type labels for `pval_value_r`.
+  Defaults to exact equality (`"="`) when omitted.
+
+- pval_tails_o:
+
+  Character or numeric. Optional tail specification for `pval_value_o`
+  (the `pval_tails_o` column of FReD, e.g., `"1 (one)"` vs `"2 (two)"`).
+  One-tailed p-values are doubled (`pmin(2 * p, 1)`) before comparing
+  against two-tailed alpha = 0.05; omitted or missing values are treated
+  as two-tailed.
+
+- pval_tails_r:
+
+  Character or numeric. Optional tail specification for `pval_value_r`
+  (the `pval_tails_r` column of FReD). Handled identically to
+  `pval_tails_o`.
+
 ## Value
 
 A data frame with the outcome of the assessment based on the specified
@@ -76,8 +121,16 @@ criteria:
 
   Evaluates the statistical significance of the replication effect (and
   whether its direction is consistent with the original effect). If the
-  original study was not significant, this is highlighted, as the
-  criterion is meaningless
+  original study was not significant, this is highlighted as
+  `"OS not significant"` (even if the replication effect size is
+  missing, since the criterion is already meaningless). Coded p-values
+  (`pval_value_o`/`pval_value_r`, with optional `pval_type_*` and
+  `pval_tails_*`) are opt-in: when omitted (the default, used by the
+  FReD Explorer), significance is computed solely from `es` and `n` via
+  two-tailed `p_from_r()`. When supplied, coded p-values are evaluated
+  first (with one-tailed values doubled to the two-tailed scale) and
+  `p_from_r()` is used as a fallback wherever a coded p-value is missing
+  or indeterminate at alpha = 0.05.
 
 - significance_agg:
 
@@ -108,7 +161,9 @@ criteria:
 
   Combines the assessment of homogeneity with the significance of the
   effect sizes. It checks whether the two effects are homogeneous and
-  jointly significantly different from zero.
+  jointly significantly different from zero. Because this criterion
+  requires comparing both studies, rows with missing replication data
+  return `NA` rather than `"OS not significant"`.
 
 - small_telescopes:
 

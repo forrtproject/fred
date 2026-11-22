@@ -7,7 +7,7 @@ summaries listing problematic values or IDs.
 ## Usage
 
 ``` r
-coerce_to_numeric(df, numeric_vars, id_var, verbose = TRUE)
+coerce_to_numeric(df, numeric_vars, id_var = NULL, verbose = TRUE)
 ```
 
 ## Arguments

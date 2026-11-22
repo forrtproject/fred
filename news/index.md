@@ -10,9 +10,47 @@
   outcome reported by the replication authors, as coded in the
   `reported_success` variable, and matches the criterion of the same
   name in the web-based Explorer. The default criterion is unchanged.
+- [`assess_replication_outcome()`](https://forrt.org/fred/reference/assess_replication_outcome.md)
+  can now optionally evaluate coded p-values from the dataset (with
+  fallback to `p_from_r()`) for `"significance_r"` and
+  `"homogeneity_significance"`; see
+  [`?assess_replication_outcome`](https://forrt.org/fred/reference/assess_replication_outcome.md)
+  for details
+  ([5e631e5](https://github.com/forrtproject/FReD/commit/5e631e5)).
 
 ### Bug fixes
 
+- Fixed offline snapshot and
+  [`read_fred()`](https://forrt.org/fred/reference/read_fred.md) type
+  coercion so `pval_value_o`/`pval_value_r` are numeric and
+  `es_value_o`/`es_value_r` stay character by default, recovering ~1,220
+  APA test-statistic strings previously lost as `NA`
+  ([5e631e5](https://github.com/forrtproject/FReD/commit/5e631e5),
+  [1e8c225](https://github.com/forrtproject/FReD/commit/1e8c225)).
+- Fixed replication outcome bugs in
+  [`assess_replication_outcome()`](https://forrt.org/fred/reference/assess_replication_outcome.md)
+  and
+  [`code_replication_outcomes()`](https://forrt.org/fred/reference/code_replication_outcomes.md)
+  (reversal detection in `significance_agg`, unreachable
+  `"inconsistent, opposite"` labels, `QEp` boundary and missing-data
+  handling in `homogeneity_significance`, and `NA` p-value
+  classification)
+  ([5e631e5](https://github.com/forrtproject/FReD/commit/5e631e5),
+  [1e8c225](https://github.com/forrtproject/FReD/commit/1e8c225)).
+- Fixed effect-size parsing and helper edge cases:
+  [`align_effect_direction()`](https://forrt.org/fred/reference/align_effect_direction.md)
+  preserves `es_r` when `es_o` is `0` or `NA`;
+  [`convert_effect_sizes()`](https://forrt.org/fred/reference/convert_effect_sizes.md)
+  supports decimal `df`, leading decimals, and `r-squared`/`f-square`
+  aliases; `p_from_r()` and interval/power helpers guard invalid `n` and
+  `|r| >= 1`
+  ([5e631e5](https://github.com/forrtproject/FReD/commit/5e631e5),
+  [1e8c225](https://github.com/forrtproject/FReD/commit/1e8c225)).
+- Fixed FReD Explorer filtering/plotting edge cases and prevented
+  [`update_offline_data()`](https://forrt.org/fred/reference/update_offline_data.md)
+  from silently saving stale snapshots on read errors
+  ([5e631e5](https://github.com/forrtproject/FReD/commit/5e631e5),
+  [1e8c225](https://github.com/forrtproject/FReD/commit/1e8c225)).
 - Chi-squared statistics are only converted to r when they can come from
   a 2 x 2 contingency table: chi2(1) with N and chi2 / N \<= 1. Other
   chi-squared values (df \> 1, no N, chi2 / N \> 1) return `NA` with a

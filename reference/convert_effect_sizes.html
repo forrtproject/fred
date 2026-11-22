@@ -106,7 +106,7 @@ values are case-insensitive.</p>
 <dd><p><code>"r"</code>, <code>"phi"</code>, <code>"φ"</code> <br><strong>Conversion:</strong> Returned as-is. <br><strong>Sign:</strong> Preserved.</p></dd>
 
 <dt>R-squared</dt>
-<dd><p><code>"r2"</code>, <code>"r^2"</code>, <code>"r²"</code>, <code>"r-square"</code> <br><strong>Conversion:</strong> \(r = \sqrt{R^2}\) <br><strong>Sign:</strong> Always positive (R² is non-directional).</p></dd>
+<dd><p><code>"r2"</code>, <code>"r^2"</code>, <code>"r²"</code>, <code>"r-square"</code>, <code>"r-squared"</code> <br><strong>Conversion:</strong> \(r = \sqrt{R^2}\) <br><strong>Sign:</strong> Always positive (R² is non-directional).</p></dd>
 
 <dt>Cohen's d / Hedges' g</dt>
 <dd><p><code>"d"</code>, <code>"cohen's d"</code>, <code>"hedges' g"</code>, <code>"smd"</code> <br><strong>Conversion:</strong> \(r = \frac{d}{\sqrt{d^2 + 4}}\) <br><strong>Sign:</strong> Preserved (if input d is negative, r is negative).</p></dd>
@@ -120,7 +120,7 @@ then d to r. <br><strong>Sign:</strong> Preserved (OR &lt; 1 implies negative r)
 then d to r. <br><strong>Sign:</strong> Always positive.</p></dd>
 
 <dt>Cohen's f / f²</dt>
-<dd><p><code>"f"</code>, <code>"cohen's f"</code>, <code>"f2"</code>, <code>"f^2"</code>, <code>"f²"</code> <br><strong>Conversion (f):</strong> \(d = 2f\), then d to r. <br><strong>Conversion (f²):</strong> \(R^2 = \frac{f^2}{1 + f^2}\),
+<dd><p><code>"f"</code>, <code>"cohen's f"</code>, <code>"f2"</code>, <code>"f^2"</code>, <code>"f²"</code>, <code>"f-square"</code>, <code>"f-squared"</code> <br><strong>Conversion (f):</strong> \(d = 2f\), then d to r. <br><strong>Conversion (f²):</strong> \(R^2 = \frac{f^2}{1 + f^2}\),
 then \(r = \sqrt{R^2}\). <br><strong>Sign:</strong> Always positive.</p></dd>
 
 

@@ -32,7 +32,7 @@ calculate_prediction_interval(r, n_o, n_r = n_o, confidence_level = 0.95)
 
 ## Value
 
-A named numeric vector with two elements:
+A list with two numeric vectors:
 
 - lower:
 

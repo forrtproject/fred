@@ -2,7 +2,9 @@
 
 Ensure that all original effects are coded as positive, and that
 replication effects are coded in the same direction (so that they
-*would* be positive if successful.
+*would* be positive if successful). Rows where `es_original` is `0` or
+`NA` have no defined direction, so their `es_replication` value is
+preserved as-is rather than zeroed out or set to `NA`.
 
 ## Usage
 

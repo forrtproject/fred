@@ -59,7 +59,7 @@ values are case-insensitive.
 
 - R-squared:
 
-  `"r2"`, `"r^2"`, `"r²"`, `"r-square"`  
+  `"r2"`, `"r^2"`, `"r²"`, `"r-square"`, `"r-squared"`  
   **Conversion:** \\r = \sqrt{R^2}\\  
   **Sign:** Always positive (R² is non-directional).
 
@@ -84,7 +84,8 @@ values are case-insensitive.
 
 - Cohen's f / f²:
 
-  `"f"`, `"cohen's f"`, `"f2"`, `"f^2"`, `"f²"`  
+  `"f"`, `"cohen's f"`, `"f2"`, `"f^2"`, `"f²"`, `"f-square"`,
+  `"f-squared"`  
   **Conversion (f):** \\d = 2f\\, then d to r.  
   **Conversion (f²):** \\R^2 = \frac{f^2}{1 + f^2}\\, then \\r =
   \sqrt{R^2}\\.  

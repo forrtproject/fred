@@ -57,7 +57,13 @@ various statistical criteria (see below, and <code><a href="../articles/success_
 <span>  <span class="va">n_r</span>,</span>
 <span>  <span class="va">criterion</span>,</span>
 <span>  reported_success <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  result <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  result <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  pval_value_o <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  pval_type_o <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  pval_value_r <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  pval_type_r <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  pval_tails_o <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  pval_tails_r <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -97,6 +103,41 @@ and ignored otherwise.</p></dd>
 <dd><p>Character. Optional fallback for <code>criterion = "reported_success"</code>, used where
 <code>reported_success</code> is missing: the <code>result</code> variable returned by <code><a href="load_fred_data.html">load_fred_data()</a></code>.</p></dd>
 
+
+<dt id="arg-pval-value-o">pval_value_o<a class="anchor" aria-label="anchor" href="#arg-pval-value-o"></a></dt>
+<dd><p>Numeric (or numeric string). Optional coded p-values for the original study
+(the <code>pval_value_o</code> column of FReD). Opt-in: used by <code>"significance_r"</code> and
+<code>"homogeneity_significance"</code> when supplied, falling back to <code>p_from_r(es_o, n_o)</code> where
+missing or indeterminate.</p></dd>
+
+
+<dt id="arg-pval-type-o">pval_type_o<a class="anchor" aria-label="anchor" href="#arg-pval-type-o"></a></dt>
+<dd><p>Character. Optional inequality type labels for <code>pval_value_o</code> (e.g., <code>"l (&lt;)"</code>,
+<code>"e (=)"</code>, <code>"g (&gt;)"</code>, <code>"ge (&gt;=)"</code>, <code>"le (&lt;=)"</code>). Defaults to exact equality (<code>"="</code>) when omitted.</p></dd>
+
+
+<dt id="arg-pval-value-r">pval_value_r<a class="anchor" aria-label="anchor" href="#arg-pval-value-r"></a></dt>
+<dd><p>Numeric (or numeric string). Optional coded p-values for the replication study
+(the <code>pval_value_r</code> column of FReD). Opt-in: used by <code>"significance_r"</code> when supplied,
+falling back to <code>p_from_r(es_r, n_r)</code> where missing or indeterminate.</p></dd>
+
+
+<dt id="arg-pval-type-r">pval_type_r<a class="anchor" aria-label="anchor" href="#arg-pval-type-r"></a></dt>
+<dd><p>Character. Optional inequality type labels for <code>pval_value_r</code>. Defaults to
+exact equality (<code>"="</code>) when omitted.</p></dd>
+
+
+<dt id="arg-pval-tails-o">pval_tails_o<a class="anchor" aria-label="anchor" href="#arg-pval-tails-o"></a></dt>
+<dd><p>Character or numeric. Optional tail specification for <code>pval_value_o</code>
+(the <code>pval_tails_o</code> column of FReD, e.g., <code>"1 (one)"</code> vs <code>"2 (two)"</code>). One-tailed p-values
+are doubled (<code>pmin(2 * p, 1)</code>) before comparing against two-tailed alpha = 0.05; omitted or
+missing values are treated as two-tailed.</p></dd>
+
+
+<dt id="arg-pval-tails-r">pval_tails_r<a class="anchor" aria-label="anchor" href="#arg-pval-tails-r"></a></dt>
+<dd><p>Character or numeric. Optional tail specification for <code>pval_value_r</code>
+(the <code>pval_tails_r</code> column of FReD). Handled identically to <code>pval_tails_o</code>.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
@@ -110,7 +151,13 @@ For <code>criterion = "reported_success"</code>, all three columns contain the r
     <p>The function assesses the replication outcome using one of several criteria:</p><dl><dt>significance_r</dt>
 <dd><p>Evaluates the statistical significance of the replication
 effect (and whether its direction is consistent with the original effect). If
-the original study was not significant, this is highlighted, as the criterion is meaningless</p></dd>
+the original study was not significant, this is highlighted as <code>"OS not significant"</code>
+(even if the replication effect size is missing, since the criterion is already meaningless).
+Coded p-values (<code>pval_value_o</code>/<code>pval_value_r</code>, with optional <code>pval_type_*</code> and <code>pval_tails_*</code>)
+are opt-in: when omitted (the default, used by the FReD Explorer), significance is computed
+solely from <code>es</code> and <code>n</code> via two-tailed <code>p_from_r()</code>. When supplied, coded p-values are
+evaluated first (with one-tailed values doubled to the two-tailed scale) and <code>p_from_r()</code> is
+used as a fallback wherever a coded p-value is missing or indeterminate at alpha = 0.05.</p></dd>
 
 <dt>significance_agg</dt>
 <dd><p>Aggregates the effect sizes from the original and replication studies using a meta-analytic approach and
@@ -130,7 +177,8 @@ using a heterogeneity test (Q-test).</p></dd>
 
 <dt>homogeneity_significance</dt>
 <dd><p>Combines the assessment of homogeneity with the significance of the effect sizes.
-It checks whether the two effects are homogeneous and jointly significantly different from zero.</p></dd>
+It checks whether the two effects are homogeneous and jointly significantly different from zero. Because this criterion
+requires comparing both studies, rows with missing replication data return <code>NA</code> rather than <code>"OS not significant"</code>.</p></dd>
 
 <dt>small_telescopes</dt>
 <dd><p>Tests whether the replication effect size is larger than the effect size that would have given the

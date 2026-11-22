@@ -1,8 +1,8 @@
 # Add power
 
 Estimates the power of the replication study, given the original effect
-size, the sample size of the replication study, and the usual focus on a
-two-tailed test.
+size, the sample size of the replication study, and a one-tailed
+("greater") test.
 
 ## Usage
 

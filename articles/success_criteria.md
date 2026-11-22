@@ -72,8 +72,10 @@ To use this criterion, set `criterion = "significance_agg"` in
 
 assess_replication_outcome(es_o = .5, n_o = 50, es_r = .1, n_r = 50,
                            criterion = "significance_agg")
-#>   outcome                                             outcome_detailed
-#> 1 success aggregated effect is larger than 0 and in the same direction
+#>   outcome
+#> 1 success
+#>                                                                outcome_detailed
+#> 1 aggregated effect is significantly different from 0 and in the same direction
 #>   outcome_report
 #> 1        success
 ```
