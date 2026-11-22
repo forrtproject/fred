@@ -178,9 +178,11 @@ coerce_to_numeric <- function(df, numeric_vars, id_var = NULL, verbose = TRUE) {
   has_id <- !is.null(id_var) && length(id_var) == 1 && id_var %in% names(df)
 
   for (var in numeric_vars) {
+    # Convert factors via character first so level labels (not integer codes) are parsed
+    raw_val <- if (is.factor(df[[var]])) as.character(df[[var]]) else df[[var]]
     # Suppress "NAs introduced by coercion" warnings - we detect and report these ourselves below
-    coerced <- suppressWarnings(as.numeric(df[[var]]))
-    problematic_rows <- which(!is.na(df[[var]]) & is.na(coerced))
+    coerced <- suppressWarnings(as.numeric(raw_val))
+    problematic_rows <- which(!is.na(raw_val) & is.na(coerced))
 
     if (length(problematic_rows) > 0) {
       if (has_id) {
@@ -344,7 +346,12 @@ update_offline_data <- function(data_file = get_param("FRED_DATA_FILE"), items =
         raw_data <- openxlsx::read.xlsx(data_file, sheet = 1)
         data <- normalize_fred_data(raw_data, retain_es_as_character = TRUE, verbose = FALSE)
       } else if (item == "data_description") {
-        data <- load_variable_descriptions(data = data_file)
+        # Read directly from data_file; skip without re-stamping if the single-sheet workbook has no Key Variables sheet
+        sheets <- openxlsx::getSheetNames(data_file)
+        if (!"Key Variables" %in% sheets) {
+          return(invisible(NULL))
+        }
+        data <- openxlsx::read.xlsx(data_file, sheet = "Key Variables", startRow = 2)
       } else if (item == "data_changelog") {
         data <- get_dataset_changelog()
       } else if (item == "citation") {

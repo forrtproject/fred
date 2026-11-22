@@ -75,8 +75,8 @@ jobs:
 
             # Update all offline data files using the exact hashed file
             res <- update_offline_data(data_file = Sys.getenv('FRED_DATA_PATH'))
-            if (length(res$failed) > 0) {
-              stop('Failed to update offline data items: ', paste(res$failed, collapse = ', '))
+            if (length(res[['failed']]) > 0) {
+              stop('Failed to update offline data items: ', paste(res[['failed']], collapse = ', '))
             }
           "
 

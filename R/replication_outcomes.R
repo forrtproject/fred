@@ -343,28 +343,29 @@ assess_replication_outcome <- function(es_o, n_o, es_r, n_r, criterion,
   assess_agg_significance <- function(df) {
 
     effect_comparison <- compare_effectsizes(df$es_o, df$n_o, df$es_r, df$n_r)
-    same_dir <- ifelse(df$es_o < 0, effect_comparison$ci_ub < 0, effect_comparison$ci_lb > 0)
-    opp_dir <- ifelse(df$es_o < 0, effect_comparison$ci_lb > 0, effect_comparison$ci_ub < 0)
+    has_dir <- !is.na(df$es_o) & df$es_o != 0
+    same_dir <- has_dir & ifelse(df$es_o < 0, effect_comparison$ci_ub < 0, effect_comparison$ci_lb > 0)
+    opp_dir <- has_dir & ifelse(df$es_o < 0, effect_comparison$ci_lb > 0, effect_comparison$ci_ub < 0)
     not_sig <- !is.na(effect_comparison$ci_lb) & !is.na(effect_comparison$ci_ub) &
       effect_comparison$ci_lb <= 0 & effect_comparison$ci_ub >= 0
 
     df %>%
       dplyr::mutate(
         outcome_detailed = dplyr::case_when(
-          same_dir ~ "aggregated effect is larger than 0 and in the same direction",
-          opp_dir ~ "aggregated effect is larger than 0 but in the opposite direction",
-          not_sig ~ "aggregated effect is not larger than 0",
+          same_dir ~ "aggregated effect is significantly different from 0 and in the same direction",
+          opp_dir ~ "aggregated effect is significantly different from 0 but in the opposite direction",
+          not_sig ~ "aggregated effect is not significantly different from 0",
           .default = NA_character_
         )) %>%
       dplyr::mutate(
         outcome = dplyr::case_when(
-          .data$outcome_detailed == "aggregated effect is larger than 0 and in the same direction" ~ "success",
-          .data$outcome_detailed %in% c("aggregated effect is larger than 0 but in the opposite direction", "aggregated effect is not larger than 0") ~ "failure",
+          .data$outcome_detailed == "aggregated effect is significantly different from 0 and in the same direction" ~ "success",
+          .data$outcome_detailed %in% c("aggregated effect is significantly different from 0 but in the opposite direction", "aggregated effect is not significantly different from 0") ~ "failure",
           .default = NA_character_
         )) %>%
       dplyr::mutate(
         outcome_report = dplyr::case_when(
-          .data$outcome_detailed == "aggregated effect is larger than 0 but in the opposite direction" ~ "failure (reversal)",
+          .data$outcome_detailed == "aggregated effect is significantly different from 0 but in the opposite direction" ~ "failure (reversal)",
           .default = .data$outcome
         )) %>%
       dplyr::select("outcome", "outcome_detailed", "outcome_report")
@@ -444,18 +445,19 @@ assess_replication_outcome <- function(es_o, n_o, es_r, n_r, criterion,
 
     effect_comparison <- compare_effectsizes(df$es_o, df$n_o, df$es_r, df$n_r)
     os_sig <- resolve_significance(df$es_o, df$n_o, pval_value_o, pval_type_o, pval_tails_o)
-    sig_same_dir <- ifelse(df$es_o < 0, effect_comparison$ci_ub < 0, effect_comparison$ci_lb > 0)
-    sig_opp_dir <- ifelse(df$es_o < 0, effect_comparison$ci_lb > 0, effect_comparison$ci_ub < 0)
+    has_dir <- !is.na(df$es_o) & df$es_o != 0
+    sig_same_dir <- has_dir & ifelse(df$es_o < 0, effect_comparison$ci_ub < 0, effect_comparison$ci_lb > 0)
+    sig_opp_dir <- has_dir & ifelse(df$es_o < 0, effect_comparison$ci_lb > 0, effect_comparison$ci_ub < 0)
     not_sig <- !is.na(effect_comparison$ci_lb) & !is.na(effect_comparison$ci_ub) &
       effect_comparison$ci_lb <= 0 & effect_comparison$ci_ub >= 0
 
     df %>%
       dplyr::mutate(
         outcome_detailed = dplyr::case_when(
-          effect_comparison$QEp >= 0.05 & sig_same_dir ~ "effect sizes are homogeneous and jointly significantly above 0",
+          effect_comparison$QEp >= 0.05 & sig_same_dir ~ "effect sizes are homogeneous and jointly significantly different from 0",
           effect_comparison$QEp >= 0.05 & sig_opp_dir ~ "effect sizes are homogeneous but jointly significant in opposite direction",
           effect_comparison$QEp >= 0.05 & not_sig ~ "effect sizes are homogeneous but not significant",
-          effect_comparison$QEp < 0.05 & sig_same_dir ~ "effect sizes are not homogeneous but jointly significantly above 0",
+          effect_comparison$QEp < 0.05 & sig_same_dir ~ "effect sizes are not homogeneous but jointly significantly different from 0",
           effect_comparison$QEp < 0.05 & sig_opp_dir ~ "effect sizes are not homogeneous and jointly significant in opposite direction",
           effect_comparison$QEp < 0.05 & not_sig ~ "effect sizes are not homogeneous and not significant",
           .default = NA_character_
@@ -463,10 +465,10 @@ assess_replication_outcome <- function(es_o, n_o, es_r, n_r, criterion,
         outcome = dplyr::case_when(
           is.na(.data$outcome_detailed) ~ NA_character_,
           !is.na(os_sig) & !os_sig ~ "OS not significant",
-          .data$outcome_detailed == "effect sizes are homogeneous and jointly significantly above 0" ~ "success",
+          .data$outcome_detailed == "effect sizes are homogeneous and jointly significantly different from 0" ~ "success",
           .data$outcome_detailed %in% c(
             "effect sizes are homogeneous but jointly significant in opposite direction",
-            "effect sizes are not homogeneous but jointly significantly above 0",
+            "effect sizes are not homogeneous but jointly significantly different from 0",
             "effect sizes are not homogeneous and jointly significant in opposite direction",
             "effect sizes are not homogeneous and not significant",
             "effect sizes are homogeneous but not significant"

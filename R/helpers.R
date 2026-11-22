@@ -52,7 +52,9 @@ compute_ci_r <- function(r, n, conf.level = 0.95) {
 
 #' Compute Statistical Power for Correlation Coefficient
 #'
-#' Computes the statistical power for testing a correlation coefficient using a one-sided ("greater") hypothesis given r, n, and alpha.
+#' Computes the statistical power for testing a correlation coefficient using a one-sided test
+#' in the direction of `r` (evaluating magnitude `abs(r)` against the one-sided critical value)
+#' given r, n, and alpha.
 #'
 #' @param r Numeric vector. The correlation coefficients.
 #' @param n Integer vector. The sample sizes.

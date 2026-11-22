@@ -394,10 +394,10 @@ test_that("column-length validation errors cleanly in add_common_effect_sizes, a
                "must be equal")
 })
 
-test_that("add_replication_power and augment_for_zcurve guard NA and |r| >= 1", {
-  df <- data.frame(es_o = c(NA_real_, 0.3, 1.0), n_o = c(50, 50, 50), n_r = c(2, 2, 50))
+test_that("add_replication_power and augment_for_zcurve guard NA, non-positive n_r, and |r| >= 1", {
+  df <- data.frame(es_o = c(NA_real_, 0.3, 1.0, 0.3, 0.3), n_o = c(50, 50, 50, 50, 50), n_r = c(2, 2, 50, 0, -5))
   out <- add_replication_power(df)
-  expect_equal(out$power_r, c(NA_real_, 0, NA_real_))
+  expect_equal(out$power_r, c(NA_real_, 0, NA_real_, NA_real_, NA_real_))
   expect_type(out$power_r, "double")
 
   expect_no_warning(zc <- augment_for_zcurve(df))

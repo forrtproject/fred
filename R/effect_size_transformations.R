@@ -659,9 +659,9 @@ add_replication_power <- function(fred_data, es_original = "es_o", N_replication
 
   # NA_real_ where N_replication or es_original is missing
   power_vals <- rep(NA_real_, nrow(fred_data))
-  # Return 0 where sample_replication < 4 (with valid es_original), as power calculation requires n >= 4
+  # Return 0 where 0 < sample_replication < 4 (with valid es_original), as power calculation requires n >= 4
   # This will underestimate power for tiny samples, but they should be visible as low power rather than missing
-  tiny_n <- !is.na(es_vals) & abs(es_vals) < 1 & !is.na(n_vals) & n_vals < 4
+  tiny_n <- !is.na(es_vals) & abs(es_vals) < 1 & !is.na(n_vals) & n_vals > 0 & n_vals < 4
   power_vals[tiny_n] <- 0
   # Return power where sample_replication >= 4
   valid_n <- !is.na(es_vals) & !is.na(n_vals) & n_vals >= 4

@@ -77,10 +77,15 @@ test_that("clean_variables defensively coerces character numeric columns", {
   expect_true(out$pval_value_o[1] < 0.05)
 })
 
-test_that("coerce_to_numeric handles missing id_var cleanly", {
-  df <- data.frame(x = c("1.5", "not_a_num"), stringsAsFactors = FALSE)
-  expect_warning(out <- coerce_to_numeric(df, "x", id_var = NULL, verbose = TRUE), "row|IDs")
+test_that("coerce_to_numeric handles missing id_var and factor columns cleanly", {
+  df <- data.frame(
+    x = c("1.5", "not_a_num"),
+    f = factor(c("100", "50")),
+    stringsAsFactors = FALSE
+  )
+  expect_warning(out <- coerce_to_numeric(df, c("x", "f"), id_var = NULL, verbose = TRUE), "has issues in IDs: 2")
   expect_equal(out$x, c(1.5, NA_real_))
+  expect_equal(out$f, c(100, 50))
 })
 
 test_that("update_offline_data reports failure instead of silently saving inbuilt snapshot on corrupt file", {
@@ -95,12 +100,15 @@ test_that("update_offline_data reports failure instead of silently saving inbuil
   on.exit(unlink(bad_file), add = TRUE)
 
   snap_path <- system.file("extdata", "snapshot", "data.RDS", package = "FReD")
+  desc_path <- system.file("extdata", "snapshot", "data_description.RDS", package = "FReD")
   mtime_before <- file.info(snap_path)$mtime
+  desc_mtime_before <- file.info(desc_path)$mtime
 
-  res <- suppressWarnings(suppressMessages(update_offline_data(data_file = bad_file, items = "data")))
-  expect_equal(res$failed, "data")
+  res <- suppressWarnings(suppressMessages(update_offline_data(data_file = bad_file, items = c("data", "data_description"))))
+  expect_equal(res$failed, c("data", "data_description"))
   expect_length(res$succeeded, 0L)
   expect_equal(file.info(snap_path)$mtime, mtime_before)
+  expect_equal(file.info(desc_path)$mtime, desc_mtime_before)
   # FRED_OFFLINE must be restored to TRUE
   expect_true(get_param("FRED_OFFLINE"))
 })

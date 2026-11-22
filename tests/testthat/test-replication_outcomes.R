@@ -16,22 +16,28 @@ test_that("replications can be aggregated", {
   expect_equal(nrow(compare_effectsizes(numeric(0), numeric(0), numeric(0), numeric(0))), 0L)
 })
 
-test_that("significance_agg detects significant negative reversals", {
+test_that("significance_agg detects significant negative reversals and leaves es_o == 0 direction indeterminate", {
   # Strong negative replication overwhelms small positive original -> reversal
   res <- assess_replication_outcome(0.2, 30, -0.4, 200, "significance_agg")
   expect_equal(res$outcome, "failure")
   expect_equal(res$outcome_report, "failure (reversal)")
-  expect_equal(res$outcome_detailed, "aggregated effect is larger than 0 but in the opposite direction")
+  expect_equal(res$outcome_detailed, "aggregated effect is significantly different from 0 but in the opposite direction")
 
   # Unaligned negative original with matching negative replication -> success
   res_neg <- assess_replication_outcome(-0.4, 50, -0.35, 100, "significance_agg")
   expect_equal(res_neg$outcome, "success")
   expect_equal(res_neg$outcome_report, "success")
+  expect_equal(res_neg$outcome_detailed, "aggregated effect is significantly different from 0 and in the same direction")
 
   # Unaligned negative original with strong positive replication -> reversal
   res_neg_rev <- assess_replication_outcome(-0.2, 30, 0.4, 200, "significance_agg")
   expect_equal(res_neg_rev$outcome, "failure")
   expect_equal(res_neg_rev$outcome_report, "failure (reversal)")
+
+  # Zero original effect has no direction: significant pooled effect stays indeterminate (NA)
+  res_zero_sig <- assess_replication_outcome(0, 30, 0.4, 200, "significance_agg")
+  expect_true(is.na(res_zero_sig$outcome))
+  expect_true(is.na(res_zero_sig$outcome_detailed))
 })
 
 test_that("parse_pval_type and is_p_significant handle all FReD pval_type formats and tails", {
