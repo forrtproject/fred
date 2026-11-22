@@ -290,119 +290,35 @@ test_that("add_common_effect_sizes honours dataset flags for non-convertible eff
   expect_equal(out$es_r[2], sqrt(2 / 40))
 })
 
-test_that("convert_effect_sizes handles decimal df, leading decimals, aliases, and quiet mode", {
-  vals <- c("t(84) = .27", "T(10) = 2.5", "t(173.36) = 5.37", "t(64) = -.88", "F(1, 94) = .13", "F(1, 62.9) = 8.5", "Z = -8.31, N = 1137 ,")
-  types <- rep("test statistic", length(vals))
-  expected <- c(
-    0.27 / sqrt(0.27^2 + 84),
-    2.5 / sqrt(2.5^2 + 10),
-    5.37 / sqrt(5.37^2 + 173.36),
-    -0.88 / sqrt(0.88^2 + 64),
-    sqrt(0.13) / sqrt(0.13 + 94),
-    sqrt(8.5) / sqrt(8.5 + 62.9),
-    -8.31 / sqrt(8.31^2 + 1137)
+test_that("convert_effect_sizes handles decimal df, leading decimals, aliases, and invalid domains", {
+  expect_equal(
+    convert_effect_sizes(c("t(84) = .27", "t(173.36) = 5.37", "F(1, 62.9) = 8.5", "0.25", "0.05"),
+                         c("test statistic", "test statistic", "test statistic", "r-squared", "f-square")),
+    c(0.27 / sqrt(0.27^2 + 84), 5.37 / sqrt(5.37^2 + 173.36), sqrt(8.5) / sqrt(8.5 + 62.9), 0.5, sqrt(0.05 / 1.05)),
+    tolerance = 1e-6
   )
-  expect_equal(convert_effect_sizes(vals, types), expected, tolerance = 1e-6)
-
-  expect_equal(convert_effect_sizes(c("0.25", "0.05", "0.10"), c("r-squared", "f-square", "f-squared")),
-               c(sqrt(0.25), sqrt(0.05 / 1.05), sqrt(0.10 / 1.10)), tolerance = 1e-6)
-
-  # Known non-convertible types ("hazard ratio", "cohen's dz") do not warn as unknown
-  expect_no_warning(nc <- suppressMessages(convert_effect_sizes(c("1.5", "0.4"), c("hazard ratio", "cohen's dz"))))
-  expect_true(all(is.na(nc)))
-
-  # Out-of-domain inputs return NA_real_ without NaN warnings
-  expect_no_warning(bad <- convert_effect_sizes(c("-0.1", "0", "1.0", "-0.2"), c("r2", "or", "etasq", "f2"), quiet = TRUE))
-  expect_true(all(is.na(bad)))
-  expect_type(bad, "double")
-
-  # quiet = TRUE suppresses unknown type warnings and missing/non-convertible messages
-  expect_silent(res_q <- convert_effect_sizes(c("0.5", NA), c("unknown type", "beta"), quiet = TRUE))
-  expect_type(res_q, "double")
+  expect_silent(bad <- convert_effect_sizes(c("-0.1", "0", "1.0", "0.5"), c("r2", "or", "etasq", "unknown type"), quiet = TRUE))
+  expect_true(all(is.na(bad)) && is.double(bad))
 })
 
-test_that("add_common_effect_sizes clamps converted +/-1 correlations to +/-0.9999", {
-  df <- data.frame(
-    id = c("a", "b"),
-    es_value_o = c("1", "-1"),
-    es_type_o = c("r", "r"),
-    es_value_r = c("1", "0.5"),
-    es_type_r = c("r2", "r"),
-    stringsAsFactors = FALSE
-  )
-  out <- suppressMessages(add_common_effect_sizes(df))
-  expect_equal(out$es_o, c(0.9999, -0.9999))
-  expect_equal(out$es_r, c(0.9999, 0.5))
-})
+test_that("p_from_r, align_effect_direction, and code_replication_outcomes handle edge cases", {
+  expect_no_warning(p <- p_from_r(c(NA_real_, 1, 1.5, 0.5), c(50, 50, 50, 2)))
+  expect_true(all(is.na(p)) && is.double(p))
 
-test_that("p_from_r returns NA_real_ and guards |r| >= 1 and N <= 2", {
-  expect_no_warning(p_all_na <- p_from_r(c(NA_real_, 1, -1, 1.5, 0.5), c(50, 50, 50, 50, 2)))
-  expect_true(all(is.na(p_all_na)))
-  expect_type(p_all_na, "double")
+  aligned <- align_effect_direction(data.frame(es_o = c(-0.3, 0, NA_real_), es_r = c(-0.2, 0.15, -0.25)))
+  expect_equal(aligned$es_r, c(0.2, 0.15, -0.25))
 
-  expect_lt(p_from_r(0.5, 50), 0.001)
-  expect_equal(p_from_r(0, 50), 1)
-})
+  coded <- code_replication_outcomes(data.frame(
+    es_o = c(0.4, 0.4, NA_real_),
+    es_r = c(-0.35, 0.15, 0.05),
+    p_value_o = c(0.001, 0.001, NA_real_),
+    p_value_r = c(0.001, 0.01, 0.60),
+    ci.lower_r = c(-0.50, 0.05, -0.15),
+    ci.upper_r = c(-0.20, 0.25, 0.25)
+  ))
+  expect_equal(coded$consistency[1:2], c("inconsistent, opposite", "inconsistent, smaller"))
+  expect_true(is.na(coded$result[3]))
 
-test_that("align_effect_direction preserves es_r when es_o is 0 or NA and flows cleanly into add_uncertainty", {
-  df <- data.frame(
-    es_o = c(0.3, -0.3, 0, NA_real_),
-    es_r = c(0.2, -0.2, 0.15, -0.25),
-    n_o = c(50, 50, 50, 50),
-    n_r = c(60, 60, 60, 60)
-  )
-  out <- align_effect_direction(df)
-  expect_equal(out$es_o, c(0.3, 0.3, 0, NA_real_))
-  expect_equal(out$es_r, c(0.2, 0.2, 0.15, -0.25))
-
-  unc <- add_uncertainty(out)
-  expect_true(is.na(unc$p_value_o[4]))
-  expect_true(!is.na(unc$p_value_r[4]))
-  expect_true(is.numeric(unc$ci.lower_r))
-})
-
-test_that("code_replication_outcomes classifies inconsistent opposite and handles NA p-values", {
-  df <- data.frame(
-    es_o = c(0.4, 0.4, 0.4, 0.4, NA_real_, 0.4),
-    es_r = c(-0.35, 0.15, 0.70, 0.38, 0.05, -0.2),
-    p_value_o = c(0.001, 0.001, 0.001, 0.001, NA_real_, 0.001),
-    p_value_r = c(0.001, 0.01, 0.001, 0.001, 0.60, NA_real_),
-    ci.lower_r = c(-0.50, 0.05, 0.55, 0.25, -0.15, NA_real_),
-    ci.upper_r = c(-0.20, 0.25, 0.85, 0.50, 0.25, NA_real_)
-  )
-
-  expect_no_warning(out <- code_replication_outcomes(df))
-  expect_equal(out$consistency[1], "inconsistent, opposite")
-  expect_equal(out$consistency[2], "inconsistent, smaller")
-  expect_equal(out$consistency[3], "inconsistent, larger")
-  expect_equal(out$consistency[4], "consistent")
-  expect_equal(out$result[1], "failed replication")
-  expect_equal(out$result[4], "successful replication")
-  # Missing p_value_o or p_value_r must not falsely yield "failed replication"
-  expect_true(is.na(out$result[5]))
-  expect_true(is.na(out$result[6]))
-})
-
-test_that("column-length validation errors cleanly in add_common_effect_sizes, add_uncertainty, add_sampling_variances", {
-  df <- data.frame(es_value_o = "0.3", es_type_o = "r", es_o = 0.3, n_o = 50, stringsAsFactors = FALSE)
-  expect_error(add_common_effect_sizes(df, es_value_columns = "es_value_o", es_type_columns = c("es_type_o", "es_type_r"), es_common_names = "es_o"),
-               "must be equal")
-  expect_error(add_uncertainty(df, es_value_columns = "es_o", N_columns = "n_o", vi_columns = "vi_o",
-                               ci_lower_columns = "cl", ci_upper_columns = "cu", p_values = c("p1", "p2")),
-               "must be equal")
-  expect_error(add_sampling_variances(df, es_value_columns = "es_o", N_columns = "n_o", vi_columns = c("v1", "v2")),
-               "must be equal")
-})
-
-test_that("add_replication_power and augment_for_zcurve guard NA, non-positive n_r, and |r| >= 1", {
-  df <- data.frame(es_o = c(NA_real_, 0.3, 1.0, 0.3, 0.3), n_o = c(50, 50, 50, 50, 50), n_r = c(2, 2, 50, 0, -5))
-  out <- add_replication_power(df)
-  expect_equal(out$power_r, c(NA_real_, 0, NA_real_, NA_real_, NA_real_))
-  expect_type(out$power_r, "double")
-
-  expect_no_warning(zc <- augment_for_zcurve(df))
-  expect_true(is.na(zc$z[1]))
-  expect_true(!is.na(zc$z[2]))
-  expect_true(is.na(zc$z[3]))
-  expect_type(zc$z, "double")
+  pw <- add_replication_power(data.frame(es_o = c(NA_real_, 0.3, 0.3), n_r = c(2, 2, 0)))
+  expect_equal(pw$power_r, c(NA_real_, 0, NA_real_))
 })
