@@ -49,7 +49,7 @@ values are case-insensitive.
 \strong{Sign:} Preserved.
 }
 \item{R-squared}{
-\code{"r2"}, \code{"r^2"}, \code{"r²"}, \code{"r-square"} \cr
+\code{"r2"}, \code{"r^2"}, \code{"r²"}, \code{"r-square"}, \code{"r-squared"} \cr
 \strong{Conversion:} \eqn{r = \sqrt{R^2}}{r = sqrt(R²)} \cr
 \strong{Sign:} Always positive (R² is non-directional).
 }
@@ -71,7 +71,7 @@ then d to r. \cr
 \strong{Sign:} Always positive.
 }
 \item{Cohen's f / f²}{
-\code{"f"}, \code{"cohen's f"}, \code{"f2"}, \code{"f^2"}, \code{"f²"} \cr
+\code{"f"}, \code{"cohen's f"}, \code{"f2"}, \code{"f^2"}, \code{"f²"}, \code{"f-square"}, \code{"f-squared"} \cr
 \strong{Conversion (f):} \eqn{d = 2f}{d = 2f}, then d to r. \cr
 \strong{Conversion (f²):} \eqn{R^2 = \frac{f^2}{1 + f^2}}{R² = f² / (1 + f²)},
 then \eqn{r = \sqrt{R^2}}{r = sqrt(R²)}. \cr

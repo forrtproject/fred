@@ -16,7 +16,7 @@ calculate_prediction_interval(r, n_o, n_r = n_o, confidence_level = 0.95)
 \item{confidence_level}{Numeric. The confidence level for the prediction interval. Defaults to 0.95.}
 }
 \value{
-A named numeric vector with two elements:
+A list with two numeric vectors:
 \item{lower}{The lower bound of the prediction interval.}
 \item{upper}{The upper bound of the prediction interval.}
 }

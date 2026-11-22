@@ -4,7 +4,7 @@
 \alias{coerce_to_numeric}
 \title{Coerce specified variables to numeric and identify problematic values}
 \usage{
-coerce_to_numeric(df, numeric_vars, id_var, verbose = TRUE)
+coerce_to_numeric(df, numeric_vars, id_var = NULL, verbose = TRUE)
 }
 \arguments{
 \item{df}{A data frame containing the variables to be coerced.}

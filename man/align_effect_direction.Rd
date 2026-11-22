@@ -21,5 +21,6 @@ align_effect_direction(
 Augmented FReD dataset with aligned effect directions.
 }
 \description{
-Ensure that all original effects are coded as positive, and that replication effects are coded in the same direction (so that they \emph{would} be positive if successful.
+Ensure that all original effects are coded as positive, and that replication effects are coded in the same direction (so that they \emph{would} be positive if successful).
+Rows where \code{es_original} is \code{0} or \code{NA} have no defined direction, so their \code{es_replication} value is preserved as-is rather than zeroed out or set to \code{NA}.
 }

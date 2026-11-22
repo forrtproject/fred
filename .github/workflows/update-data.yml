@@ -17,11 +17,13 @@ jobs:
       - name: Download data and check hash
         id: check-hash
         run: |
-          # Download the data file
-          curl -L -o fred_data.xlsx "https://osf.io/2tbvd/download"
+          # Download the data file outside the repo working tree
+          DATA_FILE="${RUNNER_TEMP}/fred_data.xlsx"
+          curl -fsSL -o "$DATA_FILE" "https://osf.io/2tbvd/download"
+          echo "data_file=$DATA_FILE" >> $GITHUB_OUTPUT
 
           # Calculate hash
-          NEW_HASH=$(sha256sum fred_data.xlsx | cut -d ' ' -f 1)
+          NEW_HASH=$(sha256sum "$DATA_FILE" | cut -d ' ' -f 1)
           echo "new_hash=$NEW_HASH" >> $GITHUB_OUTPUT
 
           # Read stored hash if it exists
@@ -60,6 +62,8 @@ jobs:
 
       - name: Update offline data
         if: steps.check-hash.outputs.data_changed == 'true'
+        env:
+          FRED_DATA_PATH: ${{ steps.check-hash.outputs.data_file }}
         run: |
           R -e "
             # Install package locally to have access to update function
@@ -69,8 +73,11 @@ jobs:
             Sys.setenv(FRED_OFFLINE = 'FALSE')
             Sys.setenv(FRED_SUPPRESS_STARTUP_MENU = 'TRUE')
 
-            # Update all offline data files
-            update_offline_data()
+            # Update all offline data files using the exact hashed file
+            res <- update_offline_data(data_file = Sys.getenv('FRED_DATA_PATH'))
+            if (length(res$failed) > 0) {
+              stop('Failed to update offline data items: ', paste(res$failed, collapse = ', '))
+            }
           "
 
       - name: Save new hash
