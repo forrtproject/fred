@@ -7,12 +7,12 @@
 get_dataset_changelog(changelog_file = NULL, cache = TRUE)
 }
 \arguments{
-\item{changelog_file}{URL of a markdown changelog file to return instead of the Zenodo changelogs.}
+\item{changelog_file}{URL of a markdown changelog file to return instead of the Zenodo changelog.}
 
 \item{cache}{Should the changelog be returned from cache, if already requested during this session? Defaults to TRUE.}
 }
 \description{
-Returns the changelog of the FReD dataset as a markdown string. By default, it combines
-the \code{CHANGELOG.md} files of all FReD versions on Zenodo, newest first (each file
-describes the changes in its own version).
+Returns the changelog of the FReD dataset as a markdown string. By default, this is
+the \code{CHANGELOG.md} of the latest FReD version on Zenodo, which lists all versions,
+including the earlier releases on OSF.
 }

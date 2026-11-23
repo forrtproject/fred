@@ -23,13 +23,6 @@ zenodo_latest_record <- function(cache = TRUE) {
   record
 }
 
-#' Get all FReD versions on Zenodo, newest first
-#' @noRd
-zenodo_all_versions <- function(record = zenodo_latest_record()) {
-  res <- zenodo_get_json(record$links$versions, query = list(size = 25, sort = "version"))
-  res$hits$hits
-}
-
 zenodo_get_json <- function(url, query = NULL, timeout = 15) {
   response <- httr::GET(url, query = query, httr::timeout(timeout))
   httr::stop_for_status(response, task = "query the Zenodo API")

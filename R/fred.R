@@ -89,11 +89,11 @@ create_citation <- function(cache = TRUE) {
 
 #' Get the dataset changelog
 #'
-#' Returns the changelog of the FReD dataset as a markdown string. By default, it combines
-#' the `CHANGELOG.md` files of all FReD versions on Zenodo, newest first (each file
-#' describes the changes in its own version).
+#' Returns the changelog of the FReD dataset as a markdown string. By default, this is
+#' the `CHANGELOG.md` of the latest FReD version on Zenodo, which lists all versions,
+#' including the earlier releases on OSF.
 #'
-#' @param changelog_file URL of a markdown changelog file to return instead of the Zenodo changelogs.
+#' @param changelog_file URL of a markdown changelog file to return instead of the Zenodo changelog.
 #' @param cache Should the changelog be returned from cache, if already requested during this session? Defaults to TRUE.
 
 get_dataset_changelog <- function(changelog_file = NULL, cache = TRUE) {
@@ -106,34 +106,16 @@ get_dataset_changelog <- function(changelog_file = NULL, cache = TRUE) {
       if (cache && exists("changelog", .cache, inherits = FALSE)) {
         return(.cache$changelog)
       }
-      changelog <- if (is.null(changelog_file)) {
-        zenodo_changelog(zenodo_latest_record(cache = cache))
-      } else {
-        read_text_url(changelog_file)
+      if (is.null(changelog_file)) {
+        changelog_file <- zenodo_file_url("CHANGELOG.md", zenodo_latest_record(cache = cache))
       }
+      changelog <- read_text_url(changelog_file)
       .cache$changelog <- changelog
       changelog
     },
     error = function(e) {
       return_inbuilt("data_changelog")
     }
-  )
-}
-
-# Combine the CHANGELOG.md files of all FReD versions on Zenodo, newest first.
-# Each file starts with a level-1 heading for its version ("# FReD 2026.11.1"),
-# which is demoted to level 2 under the overall title.
-zenodo_changelog <- function(record) {
-  sections <- vapply(zenodo_all_versions(record), function(version) {
-    changelog <- read_text_url(zenodo_file_url("CHANGELOG.md", version))
-    gsub("(^|\\n)(#+) ", "\\1#\\2 ", changelog)
-  }, character(1))
-  paste0(
-    "# FReD Dataset Changelog\n\n",
-    "Releases on Zenodo: <https://doi.org/10.5281/zenodo.", FRED_ZENODO_CONCEPT_ID, ">\n\n",
-    paste(sections, collapse = "\n\n"),
-    "\n\n## Earlier versions\n\n",
-    "Versions up to 2.4.2 (June 2025) were released on OSF. Their changelog is at <https://osf.io/fj3xc>.\n"
   )
 }
 
