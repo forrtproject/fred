@@ -50,9 +50,10 @@ load_variable_descriptions <- function(codebook_url = NULL) {
 
 # Download and read the codebook; errors if it cannot be read.
 # Cached by URL, so changing FRED_DATA_URL during a session gives the matching codebook.
-fetch_codebook <- function(codebook_url = NULL) {
-  if (is.null(codebook_url)) codebook_url <- fred_codebook_url()
-  if (identical(.cache$codebook_url, codebook_url)) {
+# cache = FALSE re-resolves the latest Zenodo version and downloads the codebook again.
+fetch_codebook <- function(codebook_url = NULL, cache = TRUE) {
+  if (is.null(codebook_url)) codebook_url <- fred_codebook_url(cache = cache)
+  if (cache && identical(.cache$codebook_url, codebook_url)) {
     return(.cache$codebook)
   }
   temp <- tempfile(fileext = ".csv")
@@ -69,13 +70,13 @@ fetch_codebook <- function(codebook_url = NULL) {
 }
 
 # Codebook of the Zenodo version that FRED_DATA_URL points to, or of the latest version
-fred_codebook_url <- function() {
+fred_codebook_url <- function(cache = TRUE) {
   data_url <- Sys.getenv("FRED_DATA_URL")
   zenodo_file <- "^(https://zenodo\\.org/api/records/[0-9]+/files/)[^/]+(/content)$"
   if (grepl(zenodo_file, data_url)) {
     return(sub(zenodo_file, "\\1fred_codebook.csv\\2", data_url))
   }
-  zenodo_file_url("fred_codebook.csv")
+  zenodo_file_url("fred_codebook.csv", zenodo_latest_record(cache = cache))
 }
 
 # Main variables that load_fred_data() adds to the released data
@@ -395,7 +396,7 @@ update_offline_data <- function(data_file = get_param("FRED_DATA_FILE"), items =
       } else if (item == "data_description") {
         # The fetch_* functions error instead of falling back to the inbuilt snapshot,
         # so a failed download is reported rather than re-saved as an update
-        data <- fetch_codebook(codebook_url)
+        data <- fetch_codebook(codebook_url, cache = FALSE)
       } else if (item == "data_changelog") {
         data <- fetch_changelog(cache = FALSE)
       } else if (item == "citation") {
