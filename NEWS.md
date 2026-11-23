@@ -5,6 +5,7 @@ This version history contains noteworthy changes. For a full history of changes,
 ## Data source
 - FReD now downloads its data from the FReD release on Zenodo (<https://doi.org/10.5281/zenodo.24461606>) instead of OSF. The latest version is resolved through the Zenodo API when the data is first downloaded, and the package reads its `fred.csv` file. `FRED_DATA_URL` and `FRED_DATA_FILE` still override the default and accept .csv or .xlsx files.
 - `create_citation()` cites the FReD Zenodo record (latest version) instead of the FLoRA citation, and `get_dataset_changelog()` combines the `CHANGELOG.md` files of all Zenodo versions.
+- `load_variable_descriptions()` (the Variables tab in the Explorer) reads the variable descriptions from the Zenodo codebook (`fred_codebook.csv`), plus the effect sizes and outcome that the package derives (`es_o`, `es_r`, `result`). They replace the 12 inbuilt descriptions, which used variable names from before version 0.2.0.
 
 ## New features
 - Added **Reported Success** as a success criterion in `assess_replication_outcome()` (`criterion = "reported_success"`) and the FReD Explorer. It uses the outcome reported by the replication authors, as coded in the `reported_success` variable, and matches the criterion of the same name in the web-based Explorer. The default criterion is unchanged.

@@ -49,8 +49,8 @@ test_that("update_offline_data reports failure on unreadable files without overw
   snap_path <- system.file("extdata", "snapshot", "data.RDS", package = "FReD")
   mtime_before <- file.info(snap_path)$mtime
 
-  res <- suppressWarnings(suppressMessages(update_offline_data(data_file = bad_file, items = c("data", "data_description"))))
-  expect_equal(res$failed, c("data", "data_description"))
+  res <- suppressWarnings(suppressMessages(update_offline_data(data_file = bad_file, items = "data")))
+  expect_equal(res$failed, "data")
   expect_equal(file.info(snap_path)$mtime, mtime_before)
   expect_true(get_param("FRED_OFFLINE"))
 })
@@ -92,4 +92,11 @@ test_that("Zenodo creators are formatted as APA names", {
   expect_equal(format_creator("Lach, Radoslaw P."), "Lach, R. P.")
   expect_equal(format_creator("Doe, Jean-Paul"), "Doe, J.-P.")
   expect_equal(format_creator("FORRT"), "FORRT")
+})
+
+test_that("the codebook comes from the Zenodo version of FRED_DATA_URL", {
+  old_url <- Sys.getenv("FRED_DATA_URL", unset = NA)
+  on.exit(if (is.na(old_url)) Sys.unsetenv("FRED_DATA_URL") else Sys.setenv(FRED_DATA_URL = old_url), add = TRUE)
+  Sys.setenv(FRED_DATA_URL = "https://zenodo.org/api/records/24462293/files/fred.csv/content")
+  expect_equal(fred_codebook_url(), "https://zenodo.org/api/records/24462293/files/fred_codebook.csv/content")
 })

@@ -30,27 +30,65 @@ return_inbuilt <- function(item) {
 
 #' Load variable descriptions
 #'
-#' This reads names and variable descriptions of key variables from FReD. This can used for subsetting and describing the dataset.
+#' Reads the names and descriptions of the variables in FReD from the codebook
+#' (`fred_codebook.csv`) of the FReD release on Zenodo, and adds the main variables
+#' that the package derives from them. This can be used for subsetting and
+#' describing the dataset.
 #'
-#' The descriptions are read from the `sheet_name` sheet if the FReD dataset is an
-#' .xlsx file with that sheet. The current releases (a .csv file on Zenodo) do not
-#' include it, so the descriptions inbuilt into the package are returned.
+#' The codebook comes from the same Zenodo version as the data if `FRED_DATA_URL`
+#' points to a file in a Zenodo record, and from the latest version otherwise.
 #'
-#' @param sheet_name Name of the sheet with the variable descriptions
-#' @param data Path to the FReD dataset (defaults to the latest FReD data on Zenodo)
+#' @param codebook_url URL of the codebook (.csv with columns `Variable` and `Description`). Defaults to the Zenodo codebook described above.
 #' @return A data frame with variable names (`Variable`) and descriptions (`Description`)
 
-load_variable_descriptions <- function(sheet_name = "Key Variables", data = get_param("FRED_DATA_FILE")) {
+load_variable_descriptions <- function(codebook_url = NULL) {
   if (get_param("FRED_OFFLINE")) return(return_inbuilt("data_description"))
   tryCatch({
-    if (!is_xlsx_file(data) || !sheet_name %in% openxlsx::getSheetNames(data)) {
-      # Expected for current releases, so skip return_inbuilt()'s connection warning
-      return(suppressMessages(return_inbuilt("data_description")))
+    if (exists("codebook", .cache, inherits = FALSE) && is.null(codebook_url)) {
+      return(.cache$codebook)
     }
-    openxlsx::read.xlsx(data, sheet = sheet_name, startRow = 2)
+    codebook <- fetch_codebook(codebook_url)
+    if (is.null(codebook_url)) .cache$codebook <- codebook
+    codebook
   }, error = function(e) {
     return_inbuilt("data_description")
   })
+}
+
+# Download and read the codebook; errors if it cannot be read
+fetch_codebook <- function(codebook_url = NULL) {
+  if (is.null(codebook_url)) codebook_url <- fred_codebook_url()
+  temp <- tempfile(fileext = ".csv")
+  on.exit(unlink(temp), add = TRUE)
+  download.file(codebook_url, temp, mode = "wb", quiet = TRUE)
+  codebook <- utils::read.csv(temp, fileEncoding = "UTF-8-BOM", stringsAsFactors = FALSE)
+  if (!all(c("Variable", "Description") %in% names(codebook))) {
+    stop("The codebook needs the columns Variable and Description.")
+  }
+  rbind(codebook[, c("Variable", "Description")], derived_variable_descriptions())
+}
+
+# Codebook of the Zenodo version that FRED_DATA_URL points to, or of the latest version
+fred_codebook_url <- function() {
+  data_url <- Sys.getenv("FRED_DATA_URL")
+  zenodo_file <- "^(https://zenodo\\.org/api/records/[0-9]+/files/)[^/]+(/content)$"
+  if (grepl(zenodo_file, data_url)) {
+    return(sub(zenodo_file, "\\1fred_codebook.csv\\2", data_url))
+  }
+  zenodo_file_url("fred_codebook.csv")
+}
+
+# Main variables that load_fred_data() adds to the released data
+derived_variable_descriptions <- function() {
+  data.frame(
+    Variable = c("es_o", "es_r", "result"),
+    Description = c(
+      "Original effect size converted to a correlation (r) by the FReD package, coded as positive; NA if it cannot be converted (reason in es_o_na_reason)",
+      "Replication effect size converted to a correlation (r) by the FReD package, coded so that it is positive if it points in the direction of the original effect; NA if it cannot be converted (reason in es_r_na_reason)",
+      "Replication outcome computed by the FReD package from the p-values of the converted correlations: 'OS not significant' if the original p >= .05, 'successful replication' if both p < .05 with effects in the same direction, otherwise 'failed replication'"
+    ),
+    stringsAsFactors = FALSE
+  )
 }
 
 #' Bind Rows with Character Columns
@@ -353,11 +391,8 @@ update_offline_data <- function(data_file = get_param("FRED_DATA_FILE"), items =
         raw_data <- read_fred_file(data_file)
         data <- normalize_fred_data(raw_data, retain_es_as_character = TRUE, verbose = FALSE)
       } else if (item == "data_description") {
-        # Read directly from data_file; skip without re-stamping if it is not a workbook with a Key Variables sheet
-        if (!is_xlsx_file(data_file) || !"Key Variables" %in% openxlsx::getSheetNames(data_file)) {
-          return(invisible(NULL))
-        }
-        data <- openxlsx::read.xlsx(data_file, sheet = "Key Variables", startRow = 2)
+        # Read directly, without the silent fallback to the inbuilt snapshot
+        data <- fetch_codebook()
       } else if (item == "data_changelog") {
         data <- get_dataset_changelog()
       } else if (item == "citation") {
