@@ -319,6 +319,16 @@ test_that("p_from_r, align_effect_direction, and code_replication_outcomes handl
   expect_equal(coded$consistency[1:2], c("inconsistent, opposite", "inconsistent, smaller"))
   expect_true(is.na(coded$result[3]))
 
-  pw <- add_replication_power(data.frame(es_o = c(NA_real_, 0.3, 0.3), n_r = c(2, 2, 0)))
-  expect_equal(pw$power_r, c(NA_real_, 0, NA_real_))
+  pw <- add_replication_power(data.frame(
+    es_o = c(NA_real_, 0.3, 0.3, 0.3, 0.3, NA_real_, 1.0, 0.3),
+    n_r = c(2, 0, 1, 2, 3, 3, 3, NA_real_)
+  ))
+  expect_equal(pw$power_r, c(NA_real_, NA_real_, NA_real_, NA_real_, 0.05, NA_real_, NA_real_, NA_real_))
+
+  pw_custom_alpha <- add_replication_power(
+    data.frame(es_o = c(0.3, 0.3), n_r = c(3, 50)),
+    alpha = 0.01
+  )
+  expect_equal(pw_custom_alpha$power_r[1], 0.01)
+  expect_equal(pw_custom_alpha$power_r[2], compute_power_r(0.3, 50, alpha = 0.01))
 })
