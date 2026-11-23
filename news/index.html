@@ -43,6 +43,14 @@
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="development version" id="fred-development-version">FReD (development version)<a class="anchor" aria-label="anchor" href="#fred-development-version"></a></h2>
 <div class="section level3">
+<h3 id="data-source-development-version">Data source<a class="anchor" aria-label="anchor" href="#data-source-development-version"></a></h3>
+<ul><li>FReD now downloads its data from the FReD release on Zenodo (<a href="https://doi.org/10.5281/zenodo.24461606" class="external-link uri">https://doi.org/10.5281/zenodo.24461606</a>) instead of OSF. The latest version is resolved through the Zenodo API when the data is first downloaded, and the package reads its <code>fred.csv</code> file. <code>FRED_DATA_URL</code> and <code>FRED_DATA_FILE</code> still override the default and accept .csv or .xlsx files.</li>
+<li>
+<code><a href="../reference/create_citation.html">create_citation()</a></code> cites the FReD Zenodo record (latest version) instead of the FLoRA citation, and <code><a href="../reference/get_dataset_changelog.html">get_dataset_changelog()</a></code> returns the <code>CHANGELOG.md</code> of the latest Zenodo version, which lists all versions, including the earlier releases on OSF.</li>
+<li>
+<code><a href="../reference/load_variable_descriptions.html">load_variable_descriptions()</a></code> (the Variables tab in the Explorer) reads the variable descriptions from the Zenodo codebook (<code>fred_codebook.csv</code>), plus the effect sizes and outcome that the package derives (<code>es_o</code>, <code>es_r</code>, <code>result</code>). They replace the 12 inbuilt descriptions, which used variable names from before version 0.2.0.</li>
+</ul></div>
+<div class="section level3">
 <h3 id="new-features-development-version">New features<a class="anchor" aria-label="anchor" href="#new-features-development-version"></a></h3>
 <ul><li>Added <strong>Reported Success</strong> as a success criterion in <code><a href="../reference/assess_replication_outcome.html">assess_replication_outcome()</a></code> (<code>criterion = "reported_success"</code>) and the FReD Explorer. It uses the outcome reported by the replication authors, as coded in the <code>reported_success</code> variable, and matches the criterion of the same name in the web-based Explorer. The default criterion is unchanged.</li>
 <li>

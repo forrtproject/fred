@@ -8,13 +8,19 @@ following environment variables can be set (before loading the package):
 
 ## Details
 
-- `FRED_DATA_URL`: The URL of the FReD dataset, needs to return the
-  .xlsx file.
+- `FRED_DATA_URL`: The URL of the FReD dataset, needs to return a .csv
+  or .xlsx file. If not set, FReD downloads `fred.csv` from the latest
+  version of the FReD release on Zenodo
+  (<https://doi.org/10.5281/zenodo.24461606>). To use an earlier
+  version, set it to that version's file, e.g.,
+  `https://zenodo.org/api/records/24462293/files/fred.csv/content` for
+  version 2026.11.1. For versions before 2026.11.2, use the .csv rather
+  than the .xlsx file: openxlsx does not decode the escaped characters
+  in their text cells (e.g., `&` is read as `&amp;`).
 
-- `FRED_DATA_FILE`: The path to the .xlsx file, if you have downloaded
-  it already (or want it to be saved to a particular location). If the
-  file exists, it will be used - otherwise, the file will be downloaded
-  and saved there.
+- `FRED_DATA_FILE`: The path to the .csv or .xlsx file, if you have
+  downloaded it already. If the file exists, it will be used -
+  otherwise, the data will be downloaded from `FRED_DATA_URL`.
 
 - `RETRACTIONWATCH_DATA_FILE`: The path to the RetractionWatch database,
   if you have downloaded it already (or want it to be saved to a
@@ -37,6 +43,6 @@ following environment variables can be set (before loading the package):
 
 ``` r
 ## Not run:
-Sys.setenv(FRED_DATA_URL = "http://your_url")
+Sys.setenv(FRED_DATA_URL = "https://zenodo.org/api/records/24462293/files/fred.csv/content")
 ## End(Not run)
 ```

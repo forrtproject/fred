@@ -1,22 +1,15 @@
 # Get FReD dataset citation
 
-Retrieves the current citation for the FReD dataset from GitHub.
+Returns the citation for the latest version of the FReD dataset on
+Zenodo, created from the metadata of the Zenodo record.
 
 ## Usage
 
 ``` r
-create_citation(
-  citation_url =
-    "https://raw.githubusercontent.com/forrtproject/FReD-data/main/output/citation.txt",
-  cache = TRUE
-)
+create_citation(cache = TRUE)
 ```
 
 ## Arguments
-
-- citation_url:
-
-  URL to the citation file on GitHub
 
 - cache:
 

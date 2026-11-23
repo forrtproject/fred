@@ -11,7 +11,8 @@ own version of the dataset).
 ``` r
 update_offline_data(
   data_file = get_param("FRED_DATA_FILE"),
-  items = c("data", "data_description", "data_changelog", "citation")
+  items = c("data", "data_description", "data_changelog", "citation"),
+  codebook_url = NULL
 )
 ```
 
@@ -24,3 +25,9 @@ update_offline_data(
 - items:
 
   Vector of items to update - defaults to all necessary items.
+
+- codebook_url:
+
+  URL of the codebook (.csv with columns `Variable` and `Description`)
+  that describes `data_file`. Defaults to the codebook of the Zenodo
+  version that `FRED_DATA_URL` points to, or of the latest version.

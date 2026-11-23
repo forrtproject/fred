@@ -1,22 +1,21 @@
-# Get the dataset changelog from OSF
+# Get the dataset changelog
 
-Downloads and reads the changelog file from OSF, and returns it as a
-character string.
+Returns the changelog of the FReD dataset as a markdown string. By
+default, this is the `CHANGELOG.md` of the latest FReD version on
+Zenodo, which lists all versions, including the earlier releases on OSF.
 
 ## Usage
 
 ``` r
-get_dataset_changelog(
-  changelog_file = "https://osf.io/fj3xc/download",
-  cache = TRUE
-)
+get_dataset_changelog(changelog_file = NULL, cache = TRUE)
 ```
 
 ## Arguments
 
 - changelog_file:
 
-  The URL of the changelog file on OSF
+  URL of a markdown changelog file to return instead of the Zenodo
+  changelog.
 
 - cache:
 

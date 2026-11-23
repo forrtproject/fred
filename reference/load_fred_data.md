@@ -13,7 +13,7 @@ load_fred_data(data = get_param("FRED_DATA_FILE"), verbose = FALSE)
 
 - data:
 
-  Path to the FReD dataset (defaults to current FReD data on OSF),
+  Path to the FReD dataset (defaults to the latest FReD data on Zenodo),
   unless the package is in offline mode
   ([`use_FReD_offline()`](https://forrt.org/fred/reference/use_FReD_offline.md))
 

@@ -29,7 +29,7 @@
 - [`create_citation()`](https://forrt.org/fred/reference/create_citation.md)
   : Get FReD dataset citation
 - [`get_dataset_changelog()`](https://forrt.org/fred/reference/get_dataset_changelog.md)
-  : Get the dataset changelog from OSF
+  : Get the dataset changelog
 - [`get_last_modified()`](https://forrt.org/fred/reference/get_last_modified.md)
   : Get the date of last modification
 - [`load_fred_data()`](https://forrt.org/fred/reference/load_fred_data.md)
