@@ -645,27 +645,40 @@ code_replication_outcomes <- function(fred_data,
 
 #' Add power
 #'
-#' Estimates the power of the replication study, given the original effect size, the sample size of the replication study, and a one-tailed ("greater") test.
+#' Estimates the power of the replication study, given the original effect size,
+#' the sample size of the replication study, and a one-tailed ("greater") test.
+#'
+#' For \code{N_replication <= 2} (\code{df <= 0}), a correlation test cannot be
+#' performed and power is returned as \code{NA}. For \code{2 < N_replication < 4}
+#' (i.e. \code{n = 3}, where \code{df = 1} but Fisher's \eqn{z} approximation
+#' requires \eqn{n \ge 4}), power is floored at \code{alpha} whenever a valid
+#' original effect size (\code{|r| < 1}) is available.
 #'
 #' @param fred_data FReD dataset
 #' @param es_original Character. Name of original effect size column.
 #' @param N_replication Character. Name of replication sample size column.
 #' @param power_column Character. Name of target column for power.
+#' @param alpha Numeric. Significance level for the one-tailed test (default \code{0.05}).
 #' @return Augmented FReD dataset with power column.
 
-add_replication_power <- function(fred_data, es_original = "es_o", N_replication = "n_r", power_column = "power_r") {
+add_replication_power <- function(fred_data, es_original = "es_o", N_replication = "n_r", power_column = "power_r", alpha = 0.05) {
+  if (!is.numeric(alpha) || length(alpha) != 1L || is.na(alpha) || !is.finite(alpha) || alpha <= 0 || alpha >= 1) {
+    stop("'alpha' must be a single numeric value strictly between 0 and 1")
+  }
+
   es_vals <- fred_data[[es_original]]
   n_vals <- fred_data[[N_replication]]
 
-  # NA_real_ where N_replication or es_original is missing
+  # NA_real_ where N_replication or es_original is missing, |es_o| >= 1, or n <= 2 (df <= 0)
   power_vals <- rep(NA_real_, nrow(fred_data))
-  # Return 0 where 0 < sample_replication < 4 (with valid es_original), as power calculation requires n >= 4
-  # This will underestimate power for tiny samples, but they should be visible as low power rather than missing
-  tiny_n <- !is.na(es_vals) & abs(es_vals) < 1 & !is.na(n_vals) & n_vals > 0 & n_vals < 4
-  power_vals[tiny_n] <- 0
+  # Return alpha where 2 < sample_replication < 4 (e.g. n = 3) with valid es_original:
+  # a correlation test exists (df > 0), so alpha is the conservative lower bound where
+  # Fisher's z approximation (which requires n >= 4) cannot be evaluated.
+  tiny_n <- !is.na(es_vals) & abs(es_vals) < 1 & !is.na(n_vals) & n_vals > 2 & n_vals < 4
+  power_vals[tiny_n] <- alpha
   # Return power where sample_replication >= 4
   valid_n <- !is.na(es_vals) & !is.na(n_vals) & n_vals >= 4
-  power_vals[valid_n] <- compute_power_r(r = es_vals[valid_n], n = n_vals[valid_n])
+  power_vals[valid_n] <- compute_power_r(r = es_vals[valid_n], n = n_vals[valid_n], alpha = alpha)
 
   fred_data[[power_column]] <- power_vals
   fred_data

@@ -76,6 +76,9 @@ compute_ci_r <- function(r, n, conf.level = 0.95) {
     if (length(r) != length(n)) {
       stop("The length of 'r' and 'n' must be the same")
     }
+    if (!is.numeric(alpha) || length(alpha) != 1L || is.na(alpha) || !is.finite(alpha) || alpha <= 0 || alpha >= 1) {
+      stop("'alpha' must be a single numeric value strictly between 0 and 1")
+    }
 
     power <- rep(NA_real_, length(r))
     valid <- !(is.na(r) | is.na(n) | n <= 3 | abs(r) >= 1)
