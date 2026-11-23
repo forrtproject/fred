@@ -662,6 +662,10 @@ code_replication_outcomes <- function(fred_data,
 #' @return Augmented FReD dataset with power column.
 
 add_replication_power <- function(fred_data, es_original = "es_o", N_replication = "n_r", power_column = "power_r", alpha = 0.05) {
+  if (!is.numeric(alpha) || length(alpha) != 1L || is.na(alpha) || !is.finite(alpha) || alpha <= 0 || alpha >= 1) {
+    stop("'alpha' must be a single numeric value strictly between 0 and 1")
+  }
+
   es_vals <- fred_data[[es_original]]
   n_vals <- fred_data[[N_replication]]
 

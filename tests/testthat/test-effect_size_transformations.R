@@ -331,4 +331,10 @@ test_that("p_from_r, align_effect_direction, and code_replication_outcomes handl
   )
   expect_equal(pw_custom_alpha$power_r[1], 0.01)
   expect_equal(pw_custom_alpha$power_r[2], compute_power_r(0.3, 50, alpha = 0.01))
+
+  expect_error(add_replication_power(data.frame(es_o = 0.3, n_r = 3), alpha = -0.1), "alpha")
+  expect_error(add_replication_power(data.frame(es_o = 0.3, n_r = 3), alpha = 0), "alpha")
+  expect_error(add_replication_power(data.frame(es_o = 0.3, n_r = 3), alpha = 1), "alpha")
+  expect_error(add_replication_power(data.frame(es_o = 0.3, n_r = 3), alpha = NA_real_), "alpha")
+  expect_error(add_replication_power(data.frame(es_o = 0.3, n_r = 3), alpha = c(0.05, 0.01)), "alpha")
 })
