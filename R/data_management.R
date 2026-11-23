@@ -43,21 +43,18 @@ return_inbuilt <- function(item) {
 
 load_variable_descriptions <- function(codebook_url = NULL) {
   if (get_param("FRED_OFFLINE")) return(return_inbuilt("data_description"))
-  tryCatch({
-    if (exists("codebook", .cache, inherits = FALSE) && is.null(codebook_url)) {
-      return(.cache$codebook)
-    }
-    codebook <- fetch_codebook(codebook_url)
-    if (is.null(codebook_url)) .cache$codebook <- codebook
-    codebook
-  }, error = function(e) {
+  tryCatch(fetch_codebook(codebook_url), error = function(e) {
     return_inbuilt("data_description")
   })
 }
 
-# Download and read the codebook; errors if it cannot be read
+# Download and read the codebook; errors if it cannot be read.
+# Cached by URL, so changing FRED_DATA_URL during a session gives the matching codebook.
 fetch_codebook <- function(codebook_url = NULL) {
   if (is.null(codebook_url)) codebook_url <- fred_codebook_url()
+  if (identical(.cache$codebook_url, codebook_url)) {
+    return(.cache$codebook)
+  }
   temp <- tempfile(fileext = ".csv")
   on.exit(unlink(temp), add = TRUE)
   download.file(codebook_url, temp, mode = "wb", quiet = TRUE)
@@ -65,7 +62,10 @@ fetch_codebook <- function(codebook_url = NULL) {
   if (!all(c("Variable", "Description") %in% names(codebook))) {
     stop("The codebook needs the columns Variable and Description.")
   }
-  rbind(codebook[, c("Variable", "Description")], derived_variable_descriptions())
+  codebook <- rbind(codebook[, c("Variable", "Description")], derived_variable_descriptions())
+  .cache$codebook <- codebook
+  .cache$codebook_url <- codebook_url
+  codebook
 }
 
 # Codebook of the Zenodo version that FRED_DATA_URL points to, or of the latest version
@@ -85,7 +85,7 @@ derived_variable_descriptions <- function() {
     Description = c(
       "Original effect size converted to a correlation (r) by the FReD package, coded as positive; NA if it cannot be converted (reason in es_o_na_reason)",
       "Replication effect size converted to a correlation (r) by the FReD package, coded so that it is positive if it points in the direction of the original effect; NA if it cannot be converted (reason in es_r_na_reason)",
-      "Replication outcome computed by the FReD package from the p-values of the converted correlations: 'OS not significant' if the original p >= .05, 'successful replication' if both p < .05 with effects in the same direction, otherwise 'failed replication'"
+      "Replication outcome computed by the FReD package from the p-values of the converted correlations: 'OS not significant' if the original p >= .05; 'successful replication' if both p < .05 with effects in the same direction; 'failed replication' if the original p < .05 and the replication p >= .05 or its effect points in the opposite direction; NA if the p-values or effect sizes needed for this are missing"
     ),
     stringsAsFactors = FALSE
   )
@@ -372,10 +372,12 @@ load_retractionwatch <- function(data = get_param("RETRACTIONWATCH_DATA_FILE")) 
 #'
 #' @param data_file Path to FReD data file.
 #' @param items Vector of items to update - defaults to all necessary items.
+#' @param codebook_url URL of the codebook (.csv with columns `Variable` and `Description`) that describes `data_file`. Defaults to the codebook of the Zenodo version that `FRED_DATA_URL` points to, or of the latest version.
 #'
 #' @export
 
-update_offline_data <- function(data_file = get_param("FRED_DATA_FILE"), items = c("data", "data_description", "data_changelog", "citation")) {
+update_offline_data <- function(data_file = get_param("FRED_DATA_FILE"), items = c("data", "data_description", "data_changelog", "citation"),
+                                codebook_url = NULL) {
   offline_param <- get_param("FRED_OFFLINE")
   if (offline_param) {
     use_FReD_offline(FALSE)
@@ -391,12 +393,13 @@ update_offline_data <- function(data_file = get_param("FRED_DATA_FILE"), items =
         raw_data <- read_fred_file(data_file)
         data <- normalize_fred_data(raw_data, retain_es_as_character = TRUE, verbose = FALSE)
       } else if (item == "data_description") {
-        # Read directly, without the silent fallback to the inbuilt snapshot
-        data <- fetch_codebook()
+        # The fetch_* functions error instead of falling back to the inbuilt snapshot,
+        # so a failed download is reported rather than re-saved as an update
+        data <- fetch_codebook(codebook_url)
       } else if (item == "data_changelog") {
-        data <- get_dataset_changelog()
+        data <- fetch_changelog(cache = FALSE)
       } else if (item == "citation") {
-        data <- create_citation()
+        data <- fetch_citation(cache = FALSE)
       } else {
         stop("Unknown snapshot item: ", item)
       }

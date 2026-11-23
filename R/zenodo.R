@@ -124,6 +124,8 @@ is_xlsx_file <- function(file) {
 # Read the data from file; if that fails, download it from url and read it from there
 safe_read_fred <- function(file, url) {
   tryCatch(read_fred_file(file), error = function(e) {
+    warning("Could not read the FReD data from ", file, " (", conditionMessage(e),
+            "). Downloading it from ", url, " instead.", call. = FALSE)
     tmp <- tempfile()
     utils::download.file(url, tmp, mode = "wb", quiet = TRUE)
     read_fred_file(tmp)

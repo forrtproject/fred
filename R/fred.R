@@ -71,20 +71,19 @@ create_citation <- function(cache = TRUE) {
   if (get_param("FRED_OFFLINE")) {
     return(return_inbuilt("citation"))
   }
+  tryCatch(fetch_citation(cache), error = function(e) {
+    return_inbuilt("citation")
+  })
+}
 
-  tryCatch(
-    {
-      if (cache && exists("citation", .cache, inherits = FALSE)) {
-        return(.cache$citation)
-      }
-      cit <- zenodo_citation(zenodo_latest_record(cache = cache))
-      .cache$citation <- cit
-      cit
-    },
-    error = function(e) {
-      return_inbuilt("citation")
-    }
-  )
+# Citation of the latest Zenodo version; errors if it cannot be retrieved
+fetch_citation <- function(cache = TRUE) {
+  if (cache && exists("citation", .cache, inherits = FALSE)) {
+    return(.cache$citation)
+  }
+  cit <- zenodo_citation(zenodo_latest_record(cache = cache))
+  .cache$citation <- cit
+  cit
 }
 
 #' Get the dataset changelog
@@ -100,23 +99,23 @@ get_dataset_changelog <- function(changelog_file = NULL, cache = TRUE) {
   if (get_param("FRED_OFFLINE")) {
     return(return_inbuilt("data_changelog"))
   }
+  tryCatch(fetch_changelog(changelog_file, cache), error = function(e) {
+    return_inbuilt("data_changelog")
+  })
+}
 
-  tryCatch(
-    {
-      if (cache && exists("changelog", .cache, inherits = FALSE)) {
-        return(.cache$changelog)
-      }
-      if (is.null(changelog_file)) {
-        changelog_file <- zenodo_file_url("CHANGELOG.md", zenodo_latest_record(cache = cache))
-      }
-      changelog <- read_text_url(changelog_file)
-      .cache$changelog <- changelog
-      changelog
-    },
-    error = function(e) {
-      return_inbuilt("data_changelog")
-    }
-  )
+# Changelog from changelog_file or the latest Zenodo version; errors if it cannot be retrieved.
+# Only the Zenodo changelog is cached.
+fetch_changelog <- function(changelog_file = NULL, cache = TRUE) {
+  if (!is.null(changelog_file)) {
+    return(read_text_url(changelog_file))
+  }
+  if (cache && exists("changelog", .cache, inherits = FALSE)) {
+    return(.cache$changelog)
+  }
+  changelog <- read_text_url(zenodo_file_url("CHANGELOG.md", zenodo_latest_record(cache = cache)))
+  .cache$changelog <- changelog
+  changelog
 }
 
 read_text_url <- function(url) {

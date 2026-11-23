@@ -100,3 +100,49 @@ test_that("the codebook comes from the Zenodo version of FRED_DATA_URL", {
   Sys.setenv(FRED_DATA_URL = "https://zenodo.org/api/records/24462293/files/fred.csv/content")
   expect_equal(fred_codebook_url(), "https://zenodo.org/api/records/24462293/files/fred_codebook.csv/content")
 })
+
+test_that("update_offline_data reports failed online fetches instead of re-saving the snapshot", {
+  old_offline <- Sys.getenv("FRED_OFFLINE", unset = NA)
+  on.exit({
+    if (is.na(old_offline)) Sys.unsetenv("FRED_OFFLINE") else Sys.setenv(FRED_OFFLINE = old_offline)
+  }, add = TRUE)
+  use_FReD_offline(TRUE)
+  local_mocked_bindings(zenodo_latest_record = function(...) stop("Zenodo unreachable"))
+  rm(list = intersect(c("changelog", "citation"), ls(.cache)), envir = .cache)
+
+  paths <- vapply(c("data_changelog", "citation"), function(item) {
+    system.file("extdata", "snapshot", paste0(item, ".RDS"), package = "FReD")
+  }, character(1))
+  mtimes_before <- file.info(paths)$mtime
+
+  res <- suppressMessages(update_offline_data(items = c("data_changelog", "citation")))
+  expect_equal(res$failed, c("data_changelog", "citation"))
+  expect_equal(file.info(paths)$mtime, mtimes_before)
+})
+
+test_that("codebooks are cached by URL", {
+  write_codebook <- function(variable) {
+    path <- tempfile(fileext = ".csv")
+    utils::write.csv(data.frame(Variable = variable, Description = "test"), path, row.names = FALSE)
+    path
+  }
+  cb1 <- write_codebook("first_var")
+  cb2 <- write_codebook("second_var")
+  on.exit(unlink(c(cb1, cb2)), add = TRUE)
+  on.exit(rm(list = intersect(c("codebook", "codebook_url"), ls(.cache)), envir = .cache), add = TRUE)
+
+  expect_equal(fetch_codebook(paste0("file://", cb1))$Variable[1], "first_var")
+  expect_equal(fetch_codebook(paste0("file://", cb2))$Variable[1], "second_var")
+})
+
+test_that("safe_read_fred warns before falling back to the URL", {
+  bad <- tempfile(fileext = ".csv")
+  writeLines(c("a,b", "1,2"), bad)
+  good <- tempfile(fileext = ".csv")
+  utils::write.csv(data.frame(es_value_o = "0.3", es_type_o = "r", n_o = 50,
+                              es_value_r = "0.2", es_type_r = "r", n_r = 100), good, row.names = FALSE)
+  on.exit(unlink(c(bad, good)), add = TRUE)
+
+  expect_warning(d <- safe_read_fred(bad, paste0("file://", good)), "Could not read the FReD data")
+  expect_equal(nrow(d), 1)
+})
