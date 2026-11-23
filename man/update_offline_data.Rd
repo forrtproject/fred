@@ -6,13 +6,16 @@
 \usage{
 update_offline_data(
   data_file = get_param("FRED_DATA_FILE"),
-  items = c("data", "data_description", "data_changelog", "citation")
+  items = c("data", "data_description", "data_changelog", "citation"),
+  codebook_url = NULL
 )
 }
 \arguments{
 \item{data_file}{Path to FReD data file.}
 
 \item{items}{Vector of items to update - defaults to all necessary items.}
+
+\item{codebook_url}{URL of the codebook (.csv with columns \code{Variable} and \code{Description}) that describes \code{data_file}. Defaults to the codebook of the Zenodo version that \code{FRED_DATA_URL} points to, or of the latest version.}
 }
 \description{
 If you set the package to work offline (\code{use_FReD_offline(TRUE)}) or if any

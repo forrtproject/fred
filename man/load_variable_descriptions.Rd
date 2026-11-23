@@ -4,19 +4,21 @@
 \alias{load_variable_descriptions}
 \title{Load variable descriptions}
 \usage{
-load_variable_descriptions(
-  sheet_name = "Key Variables",
-  data = get_param("FRED_DATA_FILE")
-)
+load_variable_descriptions(codebook_url = NULL)
 }
 \arguments{
-\item{sheet_name}{Path to the variable descriptions}
-
-\item{data}{Path to the FReD dataset (defaults to current FReD data on OSF)}
+\item{codebook_url}{URL of the codebook (.csv with columns \code{Variable} and \code{Description}). Defaults to the Zenodo codebook described above.}
 }
 \value{
 A data frame with variable names (\code{Variable}) and descriptions (\code{Description})
 }
 \description{
-This reads names and variable descriptions of key variables from FReD. This can used for subsetting and describing the dataset.
+Reads the names and descriptions of the variables in FReD from the codebook
+(\code{fred_codebook.csv}) of the FReD release on Zenodo, and adds the main variables
+that the package derives from them. This can be used for subsetting and
+describing the dataset.
+}
+\details{
+The codebook comes from the same Zenodo version as the data if \code{FRED_DATA_URL}
+points to a file in a Zenodo record, and from the latest version otherwise.
 }

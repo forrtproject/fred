@@ -7,7 +7,7 @@
 load_fred_data(data = get_param("FRED_DATA_FILE"), verbose = FALSE)
 }
 \arguments{
-\item{data}{Path to the FReD dataset (defaults to current FReD data on OSF), unless the package is in offline mode (\code{use_FReD_offline()})}
+\item{data}{Path to the FReD dataset (defaults to the latest FReD data on Zenodo), unless the package is in offline mode (\code{use_FReD_offline()})}
 
 \item{verbose}{Should detailed messages be printed that highlight data conversion issues? Defaults to FALSE (quiet mode). TRUE prints detailed warnings, and NULL prints a summary of problems.}
 }

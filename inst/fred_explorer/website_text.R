@@ -8,7 +8,7 @@ about_page <- glue::glue("
 
 **Data citation:** {create_citation()}
 
-**Data and Materials:** <a href='https://osf.io/9r62x/' target='_blank'>https://osf.io/9r62x/</a>
+**Data:** <a href='https://doi.org/10.5281/zenodo.24461606' target='_blank'>all versions on Zenodo</a>
 
 **Contribute:** Please send an e-mail to lukas.roeseler(at)uni-muenster.de
 
@@ -50,7 +50,7 @@ welcome_text <- HTML("<br /><p style=\'color:black;\'>The FReD is a collection o
 dataset_explanation <- shiny::HTML(paste("<h4><b>FReD Dataset</b>"
                                          , "<h5><br/>This is the entire FORRT Replication Database Dataset. It currently contains "
                                          , nrow(df)
-                                         , " findings. The most recent version can be downloaded via the <a href=https://osf.io/9r62x/ target='_blank'>OSF project</a>."
+                                         , " findings. The most recent version can be downloaded from <a href=https://doi.org/10.5281/zenodo.24461606 target='_blank'>Zenodo</a>."
                                          , "<br/><br/>"
                                          , sep = ""))
 

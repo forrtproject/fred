@@ -4,20 +4,15 @@
 \alias{create_citation}
 \title{Get FReD dataset citation}
 \usage{
-create_citation(
-  citation_url =
-    "https://raw.githubusercontent.com/forrtproject/FReD-data/main/output/citation.txt",
-  cache = TRUE
-)
+create_citation(cache = TRUE)
 }
 \arguments{
-\item{citation_url}{URL to the citation file on GitHub}
-
 \item{cache}{Should the citation be returned from cache, if already requested during this session? Defaults to TRUE.}
 }
 \value{
 A markdown-formatted citation for the FReD dataset.
 }
 \description{
-Retrieves the current citation for the FReD dataset from GitHub.
+Returns the citation for the latest version of the FReD dataset on Zenodo,
+created from the metadata of the Zenodo record.
 }

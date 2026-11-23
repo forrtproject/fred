@@ -30,19 +30,66 @@ return_inbuilt <- function(item) {
 
 #' Load variable descriptions
 #'
-#' This reads names and variable descriptions of key variables from FReD. This can used for subsetting and describing the dataset.
+#' Reads the names and descriptions of the variables in FReD from the codebook
+#' (`fred_codebook.csv`) of the FReD release on Zenodo, and adds the main variables
+#' that the package derives from them. This can be used for subsetting and
+#' describing the dataset.
 #'
-#' @param sheet_name Path to the variable descriptions
-#' @param data Path to the FReD dataset (defaults to current FReD data on OSF)
+#' The codebook comes from the same Zenodo version as the data if `FRED_DATA_URL`
+#' points to a file in a Zenodo record, and from the latest version otherwise.
+#'
+#' @param codebook_url URL of the codebook (.csv with columns `Variable` and `Description`). Defaults to the Zenodo codebook described above.
 #' @return A data frame with variable names (`Variable`) and descriptions (`Description`)
 
-load_variable_descriptions <- function(sheet_name = "Key Variables", data = get_param("FRED_DATA_FILE")) {
+load_variable_descriptions <- function(codebook_url = NULL) {
   if (get_param("FRED_OFFLINE")) return(return_inbuilt("data_description"))
-  tryCatch({
-    safe_read_xl(data, url = get_param("FRED_DATA_URL"), sheet = sheet_name, startRow = 2)
-  }, error = function(e) {
+  tryCatch(fetch_codebook(codebook_url), error = function(e) {
     return_inbuilt("data_description")
   })
+}
+
+# Download and read the codebook; errors if it cannot be read.
+# Cached by URL, so changing FRED_DATA_URL during a session gives the matching codebook.
+# cache = FALSE re-resolves the latest Zenodo version and downloads the codebook again.
+fetch_codebook <- function(codebook_url = NULL, cache = TRUE) {
+  if (is.null(codebook_url)) codebook_url <- fred_codebook_url(cache = cache)
+  if (cache && identical(.cache$codebook_url, codebook_url)) {
+    return(.cache$codebook)
+  }
+  temp <- tempfile(fileext = ".csv")
+  on.exit(unlink(temp), add = TRUE)
+  download.file(codebook_url, temp, mode = "wb", quiet = TRUE)
+  codebook <- utils::read.csv(temp, fileEncoding = "UTF-8-BOM", stringsAsFactors = FALSE)
+  if (!all(c("Variable", "Description") %in% names(codebook))) {
+    stop("The codebook needs the columns Variable and Description.")
+  }
+  codebook <- rbind(codebook[, c("Variable", "Description")], derived_variable_descriptions())
+  .cache$codebook <- codebook
+  .cache$codebook_url <- codebook_url
+  codebook
+}
+
+# Codebook of the Zenodo version that FRED_DATA_URL points to, or of the latest version
+fred_codebook_url <- function(cache = TRUE) {
+  data_url <- Sys.getenv("FRED_DATA_URL")
+  zenodo_file <- "^(https://zenodo\\.org/api/records/[0-9]+/files/)[^/]+(/content)$"
+  if (grepl(zenodo_file, data_url)) {
+    return(sub(zenodo_file, "\\1fred_codebook.csv\\2", data_url))
+  }
+  zenodo_file_url("fred_codebook.csv", zenodo_latest_record(cache = cache))
+}
+
+# Main variables that load_fred_data() adds to the released data
+derived_variable_descriptions <- function() {
+  data.frame(
+    Variable = c("es_o", "es_r", "result"),
+    Description = c(
+      "Original effect size converted to a correlation (r) by the FReD package, coded as positive; NA if it cannot be converted (reason in es_o_na_reason)",
+      "Replication effect size converted to a correlation (r) by the FReD package, coded so that it is positive if it points in the direction of the original effect; NA if it cannot be converted (reason in es_r_na_reason)",
+      "Replication outcome computed by the FReD package from the p-values of the converted correlations: 'OS not significant' if the original p >= .05; 'successful replication' if both p < .05 with effects in the same direction; 'failed replication' if the original p < .05 and the replication p >= .05 or its effect points in the opposite direction; NA if the p-values or effect sizes needed for this are missing"
+    ),
+    stringsAsFactors = FALSE
+  )
 }
 
 #' Bind Rows with Character Columns
@@ -128,9 +175,9 @@ normalize_fred_data <- function(fred_data, retain_es_as_character = TRUE, verbos
 
 #' Read the FReD dataset
 #'
-#' This function loads the FReD dataset into R. It merges the data from the different sheets into one data frame.
+#' This function loads the FReD dataset into R, from a .csv file or the first sheet of an .xlsx file.
 #'
-#' @param data Path to the FReD dataset (defaults to current FReD data on OSF), unless the package is in offline mode (`use_FReD_offline()`)
+#' @param data Path to the FReD dataset (defaults to the latest FReD data on Zenodo), unless the package is in offline mode (`use_FReD_offline()`)
 #' @param retain_es_as_character Should effect sizes be retained as character? Defaults to TRUE, so that coded test statistics with df can be converted to common metric.
 #' @param verbose Should detailed messages be printed that highlight data conversion issues? Defaults to FALSE (quiet mode). TRUE prints detailed warnings, and NULL prints a summary of problems.
 #' @return A data frame with the FReD dataset
@@ -145,8 +192,7 @@ read_fred <- function(data = get_param("FRED_DATA_FILE"), retain_es_as_character
 
   tryCatch({
 
-    # New data format: single sheet with all data
-    fred_data <- safe_read_xl(data, url = get_param("FRED_DATA_URL"), sheet = 1)
+    fred_data <- safe_read_fred(data, url = get_param("FRED_DATA_URL"))
 
     return(normalize_fred_data(fred_data,
                                retain_es_as_character = retain_es_as_character,
@@ -327,10 +373,12 @@ load_retractionwatch <- function(data = get_param("RETRACTIONWATCH_DATA_FILE")) 
 #'
 #' @param data_file Path to FReD data file.
 #' @param items Vector of items to update - defaults to all necessary items.
+#' @param codebook_url URL of the codebook (.csv with columns `Variable` and `Description`) that describes `data_file`. Defaults to the codebook of the Zenodo version that `FRED_DATA_URL` points to, or of the latest version.
 #'
 #' @export
 
-update_offline_data <- function(data_file = get_param("FRED_DATA_FILE"), items = c("data", "data_description", "data_changelog", "citation")) {
+update_offline_data <- function(data_file = get_param("FRED_DATA_FILE"), items = c("data", "data_description", "data_changelog", "citation"),
+                                codebook_url = NULL) {
   offline_param <- get_param("FRED_OFFLINE")
   if (offline_param) {
     use_FReD_offline(FALSE)
@@ -343,19 +391,16 @@ update_offline_data <- function(data_file = get_param("FRED_DATA_FILE"), items =
     tryCatch({
       if (item == "data") {
         # Read directly without silent fallback to inbuilt snapshot or another URL
-        raw_data <- openxlsx::read.xlsx(data_file, sheet = 1)
+        raw_data <- read_fred_file(data_file)
         data <- normalize_fred_data(raw_data, retain_es_as_character = TRUE, verbose = FALSE)
       } else if (item == "data_description") {
-        # Read directly from data_file; skip without re-stamping if the single-sheet workbook has no Key Variables sheet
-        sheets <- openxlsx::getSheetNames(data_file)
-        if (!"Key Variables" %in% sheets) {
-          return(invisible(NULL))
-        }
-        data <- openxlsx::read.xlsx(data_file, sheet = "Key Variables", startRow = 2)
+        # The fetch_* functions error instead of falling back to the inbuilt snapshot,
+        # so a failed download is reported rather than re-saved as an update
+        data <- fetch_codebook(codebook_url, cache = FALSE)
       } else if (item == "data_changelog") {
-        data <- get_dataset_changelog()
+        data <- fetch_changelog(cache = FALSE)
       } else if (item == "citation") {
-        data <- create_citation()
+        data <- fetch_citation(cache = FALSE)
       } else {
         stop("Unknown snapshot item: ", item)
       }

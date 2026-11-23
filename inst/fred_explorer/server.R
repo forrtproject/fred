@@ -24,7 +24,7 @@ server <- function(input, output, session) {
       was_offline <- get_param("FRED_OFFLINE")
       if (was_offline) use_FReD_offline(FALSE)
 
-      # Delete cached data file to force fresh download from OSF
+      # Delete cached data file to force a fresh download (from Zenodo, unless FRED_DATA_URL is set)
       cached_file <- get_param("FRED_DATA_FILE")
       if (file.exists(cached_file)) {
         file.remove(cached_file)

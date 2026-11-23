@@ -17,9 +17,15 @@ jobs:
       - name: Download data and check hash
         id: check-hash
         run: |
-          # Download the data file outside the repo working tree
-          DATA_FILE="${RUNNER_TEMP}/fred_data.xlsx"
-          curl -fsSL -o "$DATA_FILE" "https://osf.io/2tbvd/download"
+          # Download fred.csv from the latest FReD version on Zenodo, outside the repo working tree
+          DATA_FILE="${RUNNER_TEMP}/fred.csv"
+          DATA_URL=$(curl -fsSL "https://zenodo.org/api/records/24461606/versions/latest" \
+            | jq -r '.files[] | select(.key == "fred.csv") | .links.self')
+          if [ -z "$DATA_URL" ]; then
+            echo "fred.csv not found in the latest Zenodo record" >&2
+            exit 1
+          fi
+          curl -fsSL -o "$DATA_FILE" "$DATA_URL"
           echo "data_file=$DATA_FILE" >> $GITHUB_OUTPUT
 
           # Calculate hash

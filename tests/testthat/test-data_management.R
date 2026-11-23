@@ -49,8 +49,100 @@ test_that("update_offline_data reports failure on unreadable files without overw
   snap_path <- system.file("extdata", "snapshot", "data.RDS", package = "FReD")
   mtime_before <- file.info(snap_path)$mtime
 
-  res <- suppressWarnings(suppressMessages(update_offline_data(data_file = bad_file, items = c("data", "data_description"))))
-  expect_equal(res$failed, c("data", "data_description"))
+  res <- suppressWarnings(suppressMessages(update_offline_data(data_file = bad_file, items = "data")))
+  expect_equal(res$failed, "data")
   expect_equal(file.info(snap_path)$mtime, mtime_before)
   expect_true(get_param("FRED_OFFLINE"))
+})
+
+test_that("read_fred_file reads Zenodo-style CSV and detects xlsx by content", {
+  csv <- tempfile(fileext = ".csv")
+  on.exit(unlink(csv), add = TRUE)
+  # Zenodo's fred.csv: UTF-8 with BOM, all fields quoted, CRLF line endings, empty cells for missing
+  lines <- c(
+    '"effect_uid","ref_o","es_value_o","es_type_o","n_o","es_value_r","es_type_r","n_r","notes"',
+    '"fe00001","Smith & Jones (2020)","t(48) = 2.1","test statistic","50","0.3","r","120",""'
+  )
+  con <- file(csv, "wb")
+  writeBin(as.raw(c(0xef, 0xbb, 0xbf)), con)
+  writeBin(charToRaw(paste0(paste(lines, collapse = "\r\n"), "\r\n")), con)
+  close(con)
+
+  d <- read_fred_file(csv)
+  expect_equal(names(d)[1], "effect_uid")
+  expect_equal(d$ref_o, "Smith & Jones (2020)")
+  expect_equal(d$es_value_o, "t(48) = 2.1")
+  expect_true(is.na(d$notes))
+  expect_false(is_xlsx_file(csv))
+
+  xlsx_no_ext <- tempfile()
+  on.exit(unlink(xlsx_no_ext), add = TRUE)
+  openxlsx::write.xlsx(d, xlsx_no_ext)
+  expect_true(is_xlsx_file(xlsx_no_ext))
+  expect_equal(read_fred_file(xlsx_no_ext)$ref_o, "Smith & Jones (2020)")
+
+  bad <- tempfile(fileext = ".csv")
+  on.exit(unlink(bad), add = TRUE)
+  writeLines(c("a,b", "1,2"), bad)
+  expect_error(read_fred_file(bad), "lacks the columns")
+})
+
+test_that("Zenodo creators are formatted as APA names", {
+  expect_equal(format_creator("Deressa, Teshome Kebede"), "Deressa, T. K.")
+  expect_equal(format_creator("Lach, Radoslaw P."), "Lach, R. P.")
+  expect_equal(format_creator("Doe, Jean-Paul"), "Doe, J.-P.")
+  expect_equal(format_creator("FORRT"), "FORRT")
+})
+
+test_that("the codebook comes from the Zenodo version of FRED_DATA_URL", {
+  old_url <- Sys.getenv("FRED_DATA_URL", unset = NA)
+  on.exit(if (is.na(old_url)) Sys.unsetenv("FRED_DATA_URL") else Sys.setenv(FRED_DATA_URL = old_url), add = TRUE)
+  Sys.setenv(FRED_DATA_URL = "https://zenodo.org/api/records/24462293/files/fred.csv/content")
+  expect_equal(fred_codebook_url(), "https://zenodo.org/api/records/24462293/files/fred_codebook.csv/content")
+})
+
+test_that("update_offline_data reports failed online fetches instead of re-saving the snapshot", {
+  old_offline <- Sys.getenv("FRED_OFFLINE", unset = NA)
+  on.exit({
+    if (is.na(old_offline)) Sys.unsetenv("FRED_OFFLINE") else Sys.setenv(FRED_OFFLINE = old_offline)
+  }, add = TRUE)
+  use_FReD_offline(TRUE)
+  local_mocked_bindings(zenodo_latest_record = function(...) stop("Zenodo unreachable"))
+  rm(list = intersect(c("changelog", "citation"), ls(.cache)), envir = .cache)
+
+  paths <- vapply(c("data_changelog", "citation"), function(item) {
+    system.file("extdata", "snapshot", paste0(item, ".RDS"), package = "FReD")
+  }, character(1))
+  mtimes_before <- file.info(paths)$mtime
+
+  res <- suppressMessages(update_offline_data(items = c("data_changelog", "citation")))
+  expect_equal(res$failed, c("data_changelog", "citation"))
+  expect_equal(file.info(paths)$mtime, mtimes_before)
+})
+
+test_that("codebooks are cached by URL", {
+  write_codebook <- function(variable) {
+    path <- tempfile(fileext = ".csv")
+    utils::write.csv(data.frame(Variable = variable, Description = "test"), path, row.names = FALSE)
+    path
+  }
+  cb1 <- write_codebook("first_var")
+  cb2 <- write_codebook("second_var")
+  on.exit(unlink(c(cb1, cb2)), add = TRUE)
+  on.exit(rm(list = intersect(c("codebook", "codebook_url"), ls(.cache)), envir = .cache), add = TRUE)
+
+  expect_equal(fetch_codebook(paste0("file://", cb1))$Variable[1], "first_var")
+  expect_equal(fetch_codebook(paste0("file://", cb2))$Variable[1], "second_var")
+})
+
+test_that("safe_read_fred warns before falling back to the URL", {
+  bad <- tempfile(fileext = ".csv")
+  writeLines(c("a,b", "1,2"), bad)
+  good <- tempfile(fileext = ".csv")
+  utils::write.csv(data.frame(es_value_o = "0.3", es_type_o = "r", n_o = 50,
+                              es_value_r = "0.2", es_type_r = "r", n_r = 100), good, row.names = FALSE)
+  on.exit(unlink(c(bad, good)), add = TRUE)
+
+  expect_warning(d <- safe_read_fred(bad, paste0("file://", good)), "Could not read the FReD data")
+  expect_equal(nrow(d), 1)
 })

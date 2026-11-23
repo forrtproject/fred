@@ -11,7 +11,7 @@ read_fred(
 )
 }
 \arguments{
-\item{data}{Path to the FReD dataset (defaults to current FReD data on OSF), unless the package is in offline mode (\code{use_FReD_offline()})}
+\item{data}{Path to the FReD dataset (defaults to the latest FReD data on Zenodo), unless the package is in offline mode (\code{use_FReD_offline()})}
 
 \item{retain_es_as_character}{Should effect sizes be retained as character? Defaults to TRUE, so that coded test statistics with df can be converted to common metric.}
 
@@ -21,5 +21,5 @@ read_fred(
 A data frame with the FReD dataset
 }
 \description{
-This function loads the FReD dataset into R. It merges the data from the different sheets into one data frame.
+This function loads the FReD dataset into R, from a .csv file or the first sheet of an .xlsx file.
 }

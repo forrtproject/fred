@@ -2,6 +2,11 @@ This version history contains noteworthy changes. For a full history of changes,
 
 # FReD (development version)
 
+## Data source
+- FReD now downloads its data from the FReD release on Zenodo (<https://doi.org/10.5281/zenodo.24461606>) instead of OSF. The latest version is resolved through the Zenodo API when the data is first downloaded, and the package reads its `fred.csv` file. `FRED_DATA_URL` and `FRED_DATA_FILE` still override the default and accept .csv or .xlsx files.
+- `create_citation()` cites the FReD Zenodo record (latest version) instead of the FLoRA citation, and `get_dataset_changelog()` returns the `CHANGELOG.md` of the latest Zenodo version, which lists all versions, including the earlier releases on OSF.
+- `load_variable_descriptions()` (the Variables tab in the Explorer) reads the variable descriptions from the Zenodo codebook (`fred_codebook.csv`), plus the effect sizes and outcome that the package derives (`es_o`, `es_r`, `result`). They replace the 12 inbuilt descriptions, which used variable names from before version 0.2.0.
+
 ## New features
 - Added **Reported Success** as a success criterion in `assess_replication_outcome()` (`criterion = "reported_success"`) and the FReD Explorer. It uses the outcome reported by the replication authors, as coded in the `reported_success` variable, and matches the criterion of the same name in the web-based Explorer. The default criterion is unchanged.
 - `assess_replication_outcome()` can now optionally evaluate coded p-values from the dataset (with fallback to `p_from_r()`) for `"significance_r"` and `"homogeneity_significance"`; see `?assess_replication_outcome` for details ([5e631e5](https://github.com/forrtproject/FReD/commit/5e631e5)).
