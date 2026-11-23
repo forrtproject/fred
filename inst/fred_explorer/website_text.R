@@ -10,8 +10,6 @@ about_page <- glue::glue("
 
 **Data:** <a href='https://doi.org/10.5281/zenodo.24461606' target='_blank'>all versions on Zenodo</a>
 
-**Materials:** <a href='https://osf.io/9r62x/' target='_blank'>OSF project</a>
-
 **Contribute:** Please send an e-mail to lukas.roeseler(at)uni-muenster.de
 
 **License:** _Data:_ CC-By Attribution 4.0 International, _Code:_ MIT License
