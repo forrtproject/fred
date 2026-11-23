@@ -37,6 +37,11 @@
   classification)
   ([5e631e5](https://github.com/forrtproject/FReD/commit/5e631e5),
   [1e8c225](https://github.com/forrtproject/FReD/commit/1e8c225)).
+- [`add_replication_power()`](https://forrt.org/fred/reference/add_replication_power.md)
+  now returns `NA` when `n_r <= 2` (`df <= 0`, where a correlation test
+  cannot be run) and floors power at `alpha` (default `0.05`) when
+  `2 < n_r < 4` with a valid `es_o`, instead of returning `0` for
+  `n_r < 4`.
 - Fixed effect-size parsing and helper edge cases:
   [`align_effect_direction()`](https://forrt.org/fred/reference/align_effect_direction.md)
   preserves `es_r` when `es_o` is `0` or `NA`;
