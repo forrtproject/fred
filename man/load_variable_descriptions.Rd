@@ -10,13 +10,18 @@ load_variable_descriptions(
 )
 }
 \arguments{
-\item{sheet_name}{Path to the variable descriptions}
+\item{sheet_name}{Name of the sheet with the variable descriptions}
 
-\item{data}{Path to the FReD dataset (defaults to current FReD data on OSF)}
+\item{data}{Path to the FReD dataset (defaults to the latest FReD data on Zenodo)}
 }
 \value{
 A data frame with variable names (\code{Variable}) and descriptions (\code{Description})
 }
 \description{
 This reads names and variable descriptions of key variables from FReD. This can used for subsetting and describing the dataset.
+}
+\details{
+The descriptions are read from the \code{sheet_name} sheet if the FReD dataset is an
+.xlsx file with that sheet. The current releases (a .csv file on Zenodo) do not
+include it, so the descriptions inbuilt into the package are returned.
 }

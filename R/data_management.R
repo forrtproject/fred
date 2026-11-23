@@ -32,14 +32,22 @@ return_inbuilt <- function(item) {
 #'
 #' This reads names and variable descriptions of key variables from FReD. This can used for subsetting and describing the dataset.
 #'
-#' @param sheet_name Path to the variable descriptions
-#' @param data Path to the FReD dataset (defaults to current FReD data on OSF)
+#' The descriptions are read from the `sheet_name` sheet if the FReD dataset is an
+#' .xlsx file with that sheet. The current releases (a .csv file on Zenodo) do not
+#' include it, so the descriptions inbuilt into the package are returned.
+#'
+#' @param sheet_name Name of the sheet with the variable descriptions
+#' @param data Path to the FReD dataset (defaults to the latest FReD data on Zenodo)
 #' @return A data frame with variable names (`Variable`) and descriptions (`Description`)
 
 load_variable_descriptions <- function(sheet_name = "Key Variables", data = get_param("FRED_DATA_FILE")) {
   if (get_param("FRED_OFFLINE")) return(return_inbuilt("data_description"))
   tryCatch({
-    safe_read_xl(data, url = get_param("FRED_DATA_URL"), sheet = sheet_name, startRow = 2)
+    if (!is_xlsx_file(data) || !sheet_name %in% openxlsx::getSheetNames(data)) {
+      # Expected for current releases, so skip return_inbuilt()'s connection warning
+      return(suppressMessages(return_inbuilt("data_description")))
+    }
+    openxlsx::read.xlsx(data, sheet = sheet_name, startRow = 2)
   }, error = function(e) {
     return_inbuilt("data_description")
   })
@@ -128,9 +136,9 @@ normalize_fred_data <- function(fred_data, retain_es_as_character = TRUE, verbos
 
 #' Read the FReD dataset
 #'
-#' This function loads the FReD dataset into R. It merges the data from the different sheets into one data frame.
+#' This function loads the FReD dataset into R, from a .csv file or the first sheet of an .xlsx file.
 #'
-#' @param data Path to the FReD dataset (defaults to current FReD data on OSF), unless the package is in offline mode (`use_FReD_offline()`)
+#' @param data Path to the FReD dataset (defaults to the latest FReD data on Zenodo), unless the package is in offline mode (`use_FReD_offline()`)
 #' @param retain_es_as_character Should effect sizes be retained as character? Defaults to TRUE, so that coded test statistics with df can be converted to common metric.
 #' @param verbose Should detailed messages be printed that highlight data conversion issues? Defaults to FALSE (quiet mode). TRUE prints detailed warnings, and NULL prints a summary of problems.
 #' @return A data frame with the FReD dataset
@@ -145,8 +153,7 @@ read_fred <- function(data = get_param("FRED_DATA_FILE"), retain_es_as_character
 
   tryCatch({
 
-    # New data format: single sheet with all data
-    fred_data <- safe_read_xl(data, url = get_param("FRED_DATA_URL"), sheet = 1)
+    fred_data <- safe_read_fred(data, url = get_param("FRED_DATA_URL"))
 
     return(normalize_fred_data(fred_data,
                                retain_es_as_character = retain_es_as_character,
@@ -343,12 +350,11 @@ update_offline_data <- function(data_file = get_param("FRED_DATA_FILE"), items =
     tryCatch({
       if (item == "data") {
         # Read directly without silent fallback to inbuilt snapshot or another URL
-        raw_data <- openxlsx::read.xlsx(data_file, sheet = 1)
+        raw_data <- read_fred_file(data_file)
         data <- normalize_fred_data(raw_data, retain_es_as_character = TRUE, verbose = FALSE)
       } else if (item == "data_description") {
-        # Read directly from data_file; skip without re-stamping if the single-sheet workbook has no Key Variables sheet
-        sheets <- openxlsx::getSheetNames(data_file)
-        if (!"Key Variables" %in% sheets) {
+        # Read directly from data_file; skip without re-stamping if it is not a workbook with a Key Variables sheet
+        if (!is_xlsx_file(data_file) || !"Key Variables" %in% openxlsx::getSheetNames(data_file)) {
           return(invisible(NULL))
         }
         data <- openxlsx::read.xlsx(data_file, sheet = "Key Variables", startRow = 2)

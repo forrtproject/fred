@@ -2,18 +2,17 @@
 % Please edit documentation in R/fred.R
 \name{get_dataset_changelog}
 \alias{get_dataset_changelog}
-\title{Get the dataset changelog from OSF}
+\title{Get the dataset changelog}
 \usage{
-get_dataset_changelog(
-  changelog_file = "https://osf.io/fj3xc/download",
-  cache = TRUE
-)
+get_dataset_changelog(changelog_file = NULL, cache = TRUE)
 }
 \arguments{
-\item{changelog_file}{The URL of the changelog file on OSF}
+\item{changelog_file}{URL of a markdown changelog file to return instead of the Zenodo changelogs.}
 
 \item{cache}{Should the changelog be returned from cache, if already requested during this session? Defaults to TRUE.}
 }
 \description{
-Downloads and reads the changelog file from OSF, and returns it as a character string.
+Returns the changelog of the FReD dataset as a markdown string. By default, it combines
+the \code{CHANGELOG.md} files of all FReD versions on Zenodo, newest first (each file
+describes the changes in its own version).
 }

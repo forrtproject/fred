@@ -61,13 +61,13 @@ dummy_function_calls <- function() {
 
 #' Get FReD dataset citation
 #'
-#' Retrieves the current citation for the FReD dataset from GitHub.
+#' Returns the citation for the latest version of the FReD dataset on Zenodo,
+#' created from the metadata of the Zenodo record.
 #'
-#' @param citation_url URL to the citation file on GitHub
 #' @param cache Should the citation be returned from cache, if already requested during this session? Defaults to TRUE.
 #' @return A markdown-formatted citation for the FReD dataset.
 
-create_citation <- function(citation_url = "https://raw.githubusercontent.com/forrtproject/FReD-data/main/output/citation.txt", cache = TRUE) {
+create_citation <- function(cache = TRUE) {
   if (get_param("FRED_OFFLINE")) {
     return(return_inbuilt("citation"))
   }
@@ -77,24 +77,8 @@ create_citation <- function(citation_url = "https://raw.githubusercontent.com/fo
       if (cache && exists("citation", .cache, inherits = FALSE)) {
         return(.cache$citation)
       }
-
-      temp <- tempfile(fileext = ".txt")
-      download.file(citation_url, temp, quiet = TRUE)
-
-      # Validate download succeeded
-      if (!file.exists(temp) || file.size(temp) == 0) {
-        stop("Failed to download citation file")
-      }
-
-      cit <- readLines(temp, warn = FALSE) %>% paste(collapse = "\n")
-
-      # Validate citation content is not empty
-      if (nchar(trimws(cit)) == 0) {
-        stop("Citation file is empty")
-      }
-
+      cit <- zenodo_citation(zenodo_latest_record(cache = cache))
       .cache$citation <- cit
-
       cit
     },
     error = function(e) {
@@ -103,14 +87,16 @@ create_citation <- function(citation_url = "https://raw.githubusercontent.com/fo
   )
 }
 
-#' Get the dataset changelog from OSF
+#' Get the dataset changelog
 #'
-#' Downloads and reads the changelog file from OSF, and returns it as a character string.
+#' Returns the changelog of the FReD dataset as a markdown string. By default, it combines
+#' the `CHANGELOG.md` files of all FReD versions on Zenodo, newest first (each file
+#' describes the changes in its own version).
 #'
-#' @param changelog_file The URL of the changelog file on OSF
+#' @param changelog_file URL of a markdown changelog file to return instead of the Zenodo changelogs.
 #' @param cache Should the changelog be returned from cache, if already requested during this session? Defaults to TRUE.
 
-get_dataset_changelog <- function(changelog_file = "https://osf.io/fj3xc/download", cache = TRUE) {
+get_dataset_changelog <- function(changelog_file = NULL, cache = TRUE) {
   if (get_param("FRED_OFFLINE")) {
     return(return_inbuilt("data_changelog"))
   }
@@ -120,9 +106,11 @@ get_dataset_changelog <- function(changelog_file = "https://osf.io/fj3xc/downloa
       if (cache && exists("changelog", .cache, inherits = FALSE)) {
         return(.cache$changelog)
       }
-      temp <- tempfile(fileext = ".md")
-      download.file(changelog_file, temp)
-      changelog <- readLines(temp, warn = FALSE) %>% paste(collapse = "\n")
+      changelog <- if (is.null(changelog_file)) {
+        zenodo_changelog(zenodo_latest_record(cache = cache))
+      } else {
+        read_text_url(changelog_file)
+      }
       .cache$changelog <- changelog
       changelog
     },
@@ -130,6 +118,29 @@ get_dataset_changelog <- function(changelog_file = "https://osf.io/fj3xc/downloa
       return_inbuilt("data_changelog")
     }
   )
+}
+
+# Combine the CHANGELOG.md files of all FReD versions on Zenodo, newest first.
+# Each file starts with a level-1 heading for its version ("# FReD 2026.11.1"),
+# which is demoted to level 2 under the overall title.
+zenodo_changelog <- function(record) {
+  sections <- vapply(zenodo_all_versions(record), function(version) {
+    changelog <- read_text_url(zenodo_file_url("CHANGELOG.md", version))
+    gsub("(^|\\n)(#+) ", "\\1#\\2 ", changelog)
+  }, character(1))
+  paste0(
+    "# FReD Dataset Changelog\n\n",
+    "Releases on Zenodo: <https://doi.org/10.5281/zenodo.", FRED_ZENODO_CONCEPT_ID, ">\n\n",
+    paste(sections, collapse = "\n\n"),
+    "\n\n## Earlier versions\n\n",
+    "Versions up to 2.4.2 (June 2025) were released on OSF. Their changelog is at <https://osf.io/fj3xc>.\n"
+  )
+}
+
+read_text_url <- function(url) {
+  temp <- tempfile(fileext = ".md")
+  download.file(url, temp, mode = "wb", quiet = TRUE)
+  paste(readLines(temp, warn = FALSE, encoding = "UTF-8"), collapse = "\n")
 }
 
 #' Load the FReD dataset
@@ -151,11 +162,3 @@ load_fred_data <- function(data = get_param("FRED_DATA_FILE"), verbose = FALSE) 
     code_replication_outcomes() %>%
     augment_for_zcurve()
 }
-
-safe_read_xl <- function(file, url, ...) {
-  # TK: make warning clearer
-  tryCatch(openxlsx::read.xlsx(file, ...), error = function(e) {
-    openxlsx::read.xlsx(url, ...)
-  })
-}
-

@@ -54,3 +54,42 @@ test_that("update_offline_data reports failure on unreadable files without overw
   expect_equal(file.info(snap_path)$mtime, mtime_before)
   expect_true(get_param("FRED_OFFLINE"))
 })
+
+test_that("read_fred_file reads Zenodo-style CSV and detects xlsx by content", {
+  csv <- tempfile(fileext = ".csv")
+  on.exit(unlink(csv), add = TRUE)
+  # Zenodo's fred.csv: UTF-8 with BOM, all fields quoted, CRLF line endings, empty cells for missing
+  lines <- c(
+    '"effect_uid","ref_o","es_value_o","es_type_o","n_o","es_value_r","es_type_r","n_r","notes"',
+    '"fe00001","Smith & Jones (2020)","t(48) = 2.1","test statistic","50","0.3","r","120",""'
+  )
+  con <- file(csv, "wb")
+  writeBin(as.raw(c(0xef, 0xbb, 0xbf)), con)
+  writeBin(charToRaw(paste0(paste(lines, collapse = "\r\n"), "\r\n")), con)
+  close(con)
+
+  d <- read_fred_file(csv)
+  expect_equal(names(d)[1], "effect_uid")
+  expect_equal(d$ref_o, "Smith & Jones (2020)")
+  expect_equal(d$es_value_o, "t(48) = 2.1")
+  expect_true(is.na(d$notes))
+  expect_false(is_xlsx_file(csv))
+
+  xlsx_no_ext <- tempfile()
+  on.exit(unlink(xlsx_no_ext), add = TRUE)
+  openxlsx::write.xlsx(d, xlsx_no_ext)
+  expect_true(is_xlsx_file(xlsx_no_ext))
+  expect_equal(read_fred_file(xlsx_no_ext)$ref_o, "Smith & Jones (2020)")
+
+  bad <- tempfile(fileext = ".csv")
+  on.exit(unlink(bad), add = TRUE)
+  writeLines(c("a,b", "1,2"), bad)
+  expect_error(read_fred_file(bad), "lacks the columns")
+})
+
+test_that("Zenodo creators are formatted as APA names", {
+  expect_equal(format_creator("Deressa, Teshome Kebede"), "Deressa, T. K.")
+  expect_equal(format_creator("Lach, Radoslaw P."), "Lach, R. P.")
+  expect_equal(format_creator("Doe, Jean-Paul"), "Doe, J.-P.")
+  expect_equal(format_creator("FORRT"), "FORRT")
+})

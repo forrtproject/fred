@@ -11,8 +11,8 @@ The following environment variables can be set (before loading the package):
 }
 \details{
 \itemize{
-\item \code{FRED_DATA_URL}: The URL of the FReD dataset, needs to return the .xlsx file.
-\item \code{FRED_DATA_FILE}: The path to the .xlsx file, if you have downloaded it already (or want it to be saved to a particular location). If the file exists, it will be used - otherwise, the file will be downloaded and saved there.
+\item \code{FRED_DATA_URL}: The URL of the FReD dataset, needs to return a .csv or .xlsx file. If not set, FReD downloads \code{fred.csv} from the latest version of the FReD release on Zenodo (\url{https://doi.org/10.5281/zenodo.24461606}). To use an earlier version, set it to that version's file, e.g., \verb{https://zenodo.org/api/records/24462293/files/fred.csv/content} for version 2026.11.1. Use the .csv rather than the .xlsx file from Zenodo: openxlsx does not decode the escaped characters in its text cells (e.g., \code{&} is read as \verb{&amp;}).
+\item \code{FRED_DATA_FILE}: The path to the .csv or .xlsx file, if you have downloaded it already. If the file exists, it will be used - otherwise, the data will be downloaded from \code{FRED_DATA_URL}.
 \item \code{RETRACTIONWATCH_DATA_FILE}: The path to the RetractionWatch database, if you have downloaded it already (or want it to be saved to a particular location). If the file exists, it will be used - otherwise, the file will be downloaded and saved there.
 \item \code{RETRACTIONWATCH_URL}: The URL to download the RetractionWatch database. Needs to return the .csv file.
 \item \code{FRED_OFFLINE}: Should FReD work offline (TRUE) or online (FALSE). If TRUE, FReD will not download the latest data every time it is loaded. Defaults to TRUE.
@@ -21,6 +21,6 @@ The following environment variables can be set (before loading the package):
 }
 \examples{
 ## Not run:
-Sys.setenv(FRED_DATA_URL = "http://your_url")
+Sys.setenv(FRED_DATA_URL = "https://zenodo.org/api/records/24462293/files/fred.csv/content")
 ## End(Not run)
 }
